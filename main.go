@@ -2,20 +2,29 @@ package main
 
 import (
 	"fmt"
-	"github.com/soerenchrist/logsync/graph"
-	"os"
+	"github.com/soerenchrist/logsync/config"
 )
 
 func main() {
-	g, err := graph.ReadGraph("C:\\Users\\schrist\\OneDrive\\Logseq\\Personal")
-	logErr(err)
+	conf, err := config.Read()
+	if err != nil {
+		fmt.Printf("Failed to read config: %v", err)
+	}
 
-	f, err := os.Open("save.json")
-	defer f.Close()
-	logErr(err)
+	fmt.Printf("%v\n", conf)
 
-	err = graph.SaveGraph(g, f)
-	logErr(err)
+	/*
+		g, err := graph.ReadGraph("")
+		logErr(err)
+
+		f, err := os.Open("save.json")
+		defer f.Close()
+		logErr(err)
+
+		err = graph.SaveGraph(g, f)
+		logErr(err)
+
+	*/
 }
 
 func logErr(err error) {

@@ -1,0 +1,5 @@
+encryption:
+  enabled: false
+graphs:
+  - /home/schrist/OneDrive/Logseq/Personal
+  - /home/schrist/OneDrive/Logseq/Work
