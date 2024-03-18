@@ -1,5 +1,7 @@
 encryption:
   enabled: false
-graphs:
-  - /home/schrist/OneDrive/Logseq/Personal
-  - /home/schrist/OneDrive/Logseq/Work
+sync:
+  graphs:
+    - /home/schrist/OneDrive/Logseq/Personal
+    - /home/schrist/OneDrive/Logseq/Work
+  interval: 10

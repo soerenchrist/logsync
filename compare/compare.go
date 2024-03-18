@@ -11,6 +11,10 @@ type CompResult struct {
 	deleted []graph.File
 }
 
+func (c CompResult) NoChanges() bool {
+	return len(c.changed) == 0 && len(c.deleted) == 0 && len(c.created) == 0
+}
+
 func Graphs(old graph.Graph, new graph.Graph) CompResult {
 	created := make([]graph.File, 0)
 	changed := make([]graph.File, 0)

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/soerenchrist/logsync/config"
+	"github.com/soerenchrist/logsync/sync"
 )
 
 func main() {
@@ -12,6 +13,8 @@ func main() {
 	}
 
 	fmt.Printf("%v\n", conf)
+
+	sync.Start(conf)
 
 	/*
 		g, err := graph.ReadGraph("")

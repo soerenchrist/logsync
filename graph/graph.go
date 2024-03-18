@@ -90,3 +90,12 @@ func buildFileId(baseName, name string) string {
 
 	return baseName + Separator + name
 }
+
+func GetNameByPath(graphPath string) (string, error) {
+	stat, err := os.Stat(graphPath)
+	if err != nil {
+		return "", err
+	}
+
+	return stat.Name(), nil
+}

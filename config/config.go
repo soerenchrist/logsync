@@ -6,16 +6,16 @@ import (
 
 type Config struct {
 	Encryption EncryptionConfig
-	Graph      GraphConfig
+	Sync       SyncConfig
 }
 
+type SyncConfig struct {
+	Graphs   []string
+	Interval int
+}
 type EncryptionConfig struct {
 	enabled bool
 	key     string
-}
-
-type GraphConfig struct {
-	graphs []string
 }
 
 func Read() (Config, error) {
@@ -37,6 +37,8 @@ func Read() (Config, error) {
 func defineDefaults() {
 	viper.SetDefault("encryption.enabled", false)
 	viper.SetDefault("graphs", []string{})
+
+	viper.SetDefault("sync.interval", 60)
 }
 
 func getConfig() Config {
@@ -45,8 +47,9 @@ func getConfig() Config {
 			enabled: viper.GetBool("encryption.enabled"),
 			key:     viper.GetString("encryption.key"),
 		},
-		Graph: GraphConfig{
-			graphs: viper.GetStringSlice("graphs"),
+		Sync: SyncConfig{
+			Graphs:   viper.GetStringSlice("sync.graphs"),
+			Interval: viper.GetInt("sync.interval"),
 		},
 	}
 }
