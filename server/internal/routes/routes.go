@@ -9,10 +9,10 @@ import (
 type Controller struct {
 	db     *gorm.DB
 	router *chi.Mux
-	files  files.Files
+	files  files.FileStore
 }
 
-func NewController(db *gorm.DB, router *chi.Mux, f files.Files) *Controller {
+func NewController(db *gorm.DB, router *chi.Mux, f files.FileStore) *Controller {
 	c := &Controller{
 		db:     db,
 		router: router,

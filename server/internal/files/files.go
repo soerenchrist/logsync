@@ -7,6 +7,11 @@ import (
 	"path"
 )
 
+type FileStore interface {
+	Store(graphName string, fileName string, reader io.Reader) error
+	Remove(graphName string, fileName string) error
+}
+
 type Files struct {
 	basePath string
 }

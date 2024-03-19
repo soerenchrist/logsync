@@ -7,6 +7,7 @@ import (
 	"github.com/soerenchrist/logsync/server/internal/model"
 	"net/http"
 	"os"
+	"slices"
 	"time"
 )
 
@@ -24,6 +25,31 @@ func (c *Controller) deleteFile(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 
+	timestamp, err := readModifiedDate(request)
+	if err != nil {
+		http.Error(writer, "Missing modified-date", http.StatusBadRequest)
+		return
+	}
+
+	fileId := request.FormValue("file-id")
+	if fileId == "" {
+		http.Error(writer, "Missing file-id", http.StatusBadRequest)
+		return
+	}
+
+	entry := model.ChangeLogEntry{
+		GraphName: graphName,
+		FileId:    fileId,
+		Operation: model.Deleted,
+		Timestamp: timestamp,
+		FileName:  fileName,
+	}
+	tx := c.db.Create(entry)
+	if tx.Error != nil {
+		http.Error(writer, "Failed to save entry", http.StatusInternalServerError)
+		return
+	}
+
 	writer.WriteHeader(http.StatusNoContent)
 }
 
@@ -31,7 +57,7 @@ func (c *Controller) uploadFile(writer http.ResponseWriter, request *http.Reques
 	graphName := chi.URLParam(request, "graphID")
 	err := request.ParseMultipartForm(10 << 20) // max of 10MB
 	if err != nil {
-		http.Error(writer, "Could not read request", http.StatusInternalServerError)
+		http.Error(writer, "Expected multipart body", http.StatusBadRequest)
 		return
 	}
 
@@ -42,27 +68,26 @@ func (c *Controller) uploadFile(writer http.ResponseWriter, request *http.Reques
 	}
 	defer file.Close()
 
-	var timestamp time.Time
-	modifiedDate := request.FormValue("modified-date")
-	if modifiedDate == "" {
-		timestamp = time.Now()
-	} else {
-		timestamp, err = time.Parse(time.RFC3339, modifiedDate)
-		if err != nil {
-			http.Error(writer, "Could not parse modified-date", http.StatusBadRequest)
-			return
-		}
-	}
-
 	fileId := request.FormValue("file-id")
 	if fileId == "" {
 		http.Error(writer, "Missing file-id", http.StatusBadRequest)
 		return
 	}
 
+	timestamp, err := readModifiedDate(request)
+	if err != nil {
+		http.Error(writer, "Could not parse modified-date", http.StatusBadRequest)
+		return
+	}
+
 	operation := request.FormValue("operation")
 	if operation == "" {
 		http.Error(writer, "Missing operation", http.StatusBadRequest)
+		return
+	}
+	opType, err := validateOperation(operation)
+	if err != nil {
+		http.Error(writer, fmt.Sprintf("Invalid operation type, allowed values: %v", uploadAllowedOperationTypes), http.StatusBadRequest)
 		return
 	}
 
@@ -75,7 +100,7 @@ func (c *Controller) uploadFile(writer http.ResponseWriter, request *http.Reques
 	entry := model.ChangeLogEntry{
 		GraphName: graphName,
 		FileId:    fileId,
-		Operation: model.OperationType(operation),
+		Operation: opType,
 		Timestamp: timestamp,
 		FileName:  header.Filename,
 	}
@@ -85,10 +110,30 @@ func (c *Controller) uploadFile(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 
-	fmt.Printf("File: %s\n", header.Filename)
-	fmt.Printf("Size: %d\n", header.Size)
-	fmt.Printf("Header: %v\n", header.Header)
-	fmt.Printf("Modified: %s\n", modifiedDate)
-
 	writer.WriteHeader(http.StatusCreated)
+}
+
+var uploadAllowedOperationTypes = []model.OperationType{
+	model.Modified, model.Created,
+}
+
+func readModifiedDate(request *http.Request) (time.Time, error) {
+	modifiedDate := request.FormValue("modified-date")
+	if modifiedDate == "" {
+		return time.Now(), nil
+	}
+	timestamp, err := time.Parse(time.RFC3339, modifiedDate)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return timestamp, nil
+}
+
+func validateOperation(operation string) (model.OperationType, error) {
+	opType := model.OperationType(operation)
+	if slices.Contains(uploadAllowedOperationTypes, opType) {
+		return opType, nil
+	}
+
+	return "", errors.New(fmt.Sprintf("operation type %s not allowed", operation))
 }
