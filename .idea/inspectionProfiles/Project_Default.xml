@@ -15,6 +15,7 @@
         <method importPath="hash" receiver="Hash" name="Write" />
         <method importPath="os" receiver="*File" name="Close" />
         <method importPath="database/sql" receiver="*DB" name="Close" />
+        <method importPath="mime/multipart" receiver="File" name="Close" />
       </methods>
     </inspection_tool>
   </profile>

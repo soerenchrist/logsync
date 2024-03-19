@@ -3,30 +3,12 @@ package routes
 import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
-	"github.com/soerenchrist/logsync/internal/model"
-	"gorm.io/gorm"
+	"github.com/soerenchrist/logsync/server/internal/model"
 	"net/http"
 	"time"
 )
 
-type ChangesController struct {
-	db     *gorm.DB
-	router *chi.Mux
-}
-
-func NewChangesController(db *gorm.DB, router *chi.Mux) *ChangesController {
-	c := &ChangesController{
-		db:     db,
-		router: router,
-	}
-	return c
-}
-
-func (c *ChangesController) MapEndpoints() {
-	c.router.Get("/changes/{graphID}", c.getChanges)
-}
-
-func (c *ChangesController) getChanges(writer http.ResponseWriter, request *http.Request) {
+func (c *Controller) getChanges(writer http.ResponseWriter, request *http.Request) {
 	graphId := chi.URLParam(request, "graphID")
 
 	since := request.URL.Query().Get("since")

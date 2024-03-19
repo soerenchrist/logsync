@@ -22,6 +22,7 @@ func Read() (Config, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
+	viper.AddConfigPath("..")
 	viper.AddConfigPath("/etc/logsync")
 	viper.AddConfigPath("$HOME/.logsync")
 

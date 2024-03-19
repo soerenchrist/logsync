@@ -1,4 +1,4 @@
-module github.com/soerenchrist/logsync
+module github.com/soerenchrist/logsync/server
 
 go 1.21
 

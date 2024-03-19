@@ -1,7 +1,7 @@
 package compare
 
 import (
-	"github.com/soerenchrist/logsync/internal/graph"
+	"github.com/soerenchrist/logsync/client/internal/graph"
 	"slices"
 )
 
