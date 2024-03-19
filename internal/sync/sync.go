@@ -3,9 +3,9 @@ package sync
 import (
 	"errors"
 	"fmt"
-	"github.com/soerenchrist/logsync/compare"
-	"github.com/soerenchrist/logsync/config"
-	"github.com/soerenchrist/logsync/graph"
+	"github.com/soerenchrist/logsync/internal/compare"
+	"github.com/soerenchrist/logsync/internal/config"
+	"github.com/soerenchrist/logsync/internal/graph"
 	"os"
 	"path"
 	"time"

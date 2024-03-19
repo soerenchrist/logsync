@@ -2,7 +2,7 @@ package graph
 
 import (
 	"errors"
-	"github.com/soerenchrist/logsync/sanitize"
+	"github.com/soerenchrist/logsync/internal/sanitize"
 	"os"
 	"path"
 	"slices"

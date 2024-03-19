@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/soerenchrist/logsync/config"
-	"github.com/soerenchrist/logsync/sync"
+	"github.com/soerenchrist/logsync/internal/sync"
 )
 
 func main() {
