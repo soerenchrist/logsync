@@ -3,6 +3,7 @@ package routes
 import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/render"
 	"github.com/soerenchrist/logsync/server/internal/model"
 	"net/http"
 	"time"
@@ -25,9 +26,7 @@ func (c *Controller) getChanges(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 
-	for i, change := range changes {
-		fmt.Printf("Change %d: %v", i, change)
-	}
+	render.JSON(writer, request, changes)
 }
 
 func parseTime(since string) (time.Time, error) {

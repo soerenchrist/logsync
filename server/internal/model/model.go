@@ -15,11 +15,11 @@ const (
 )
 
 type ChangeLogEntry struct {
-	GraphName string    `gorm:"primaryKey"`
-	FileId    string    `gorm:"primaryKey"`
-	Timestamp time.Time `gorm:"primaryKey"`
-	FileName  string
-	Operation OperationType
+	GraphName string        `gorm:"primaryKey" json:"graph_name"`
+	FileId    string        `gorm:"primaryKey" json:"file_id"`
+	Timestamp time.Time     `gorm:"primaryKey" json:"timestamp"`
+	FileName  string        `json:"file_name"`
+	Operation OperationType `json:"operation"`
 }
 
 func CreateDb(path string) (*gorm.DB, error) {
