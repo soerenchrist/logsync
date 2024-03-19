@@ -6,11 +6,20 @@ import (
 	"time"
 )
 
+type OperationType string
+
+const (
+	Deleted  OperationType = "D"
+	Created  OperationType = "C"
+	Modified OperationType = "M"
+)
+
 type ChangeLogEntry struct {
 	GraphName string    `gorm:"primaryKey"`
 	FileId    string    `gorm:"primaryKey"`
 	Timestamp time.Time `gorm:"primaryKey"`
-	Operation string
+	FileName  string
+	Operation OperationType
 }
 
 func CreateDb(path string) (*gorm.DB, error) {
