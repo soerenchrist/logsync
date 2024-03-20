@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/soerenchrist/logsync/client/internal/config"
 	"github.com/soerenchrist/logsync/client/internal/sync"
+	"os"
 )
 
 func main() {
@@ -11,10 +12,13 @@ func main() {
 	conf, err := config.Read()
 	if err != nil {
 		fmt.Printf("Failed to read config: %v", err)
-		panic(-1)
+		os.Exit(-1)
 	}
 
-	fmt.Printf("%v\n", conf)
+	if conf.Server.Host == "" {
+		fmt.Printf("Server host configuration is missing")
+		os.Exit(-1)
+	}
 
 	sync.Start(conf)
 

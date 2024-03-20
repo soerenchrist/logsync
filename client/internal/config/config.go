@@ -7,6 +7,7 @@ import (
 type Config struct {
 	Encryption EncryptionConfig
 	Sync       SyncConfig
+	Server     ServerConfig
 }
 
 type SyncConfig struct {
@@ -16,6 +17,10 @@ type SyncConfig struct {
 type EncryptionConfig struct {
 	enabled bool
 	key     string
+}
+
+type ServerConfig struct {
+	Host string
 }
 
 func Read() (Config, error) {
@@ -51,6 +56,9 @@ func getConfig() Config {
 		Sync: SyncConfig{
 			Graphs:   viper.GetStringSlice("sync.graphs"),
 			Interval: viper.GetInt("sync.interval"),
+		},
+		Server: ServerConfig{
+			Host: viper.GetString("server.host"),
 		},
 	}
 }

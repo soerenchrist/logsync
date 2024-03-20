@@ -1,23 +1,25 @@
 package sync
 
 import (
-	"errors"
 	"fmt"
 	"github.com/soerenchrist/logsync/client/internal/compare"
 	"github.com/soerenchrist/logsync/client/internal/config"
 	"github.com/soerenchrist/logsync/client/internal/graph"
+	"github.com/soerenchrist/logsync/client/internal/remote"
 	"os"
 	"path"
 	"time"
 )
 
+var r *remote.Remote
+
 func Start(conf config.Config) {
+	r = remote.New(conf)
 	ticker := time.NewTicker(time.Duration(conf.Sync.Interval) * time.Second)
 	defer ticker.Stop()
 	for ; true; <-ticker.C {
 		syncGraphs(conf.Sync.Graphs)
 		fmt.Println("Tick")
-
 	}
 }
 
@@ -28,23 +30,66 @@ func syncGraph(graphPath string) error {
 	}
 	fmt.Printf("Graph name: %s\n", name)
 
-	loadFilePath, err := getLoadFilePath(name)
+	lastSync, err := getLastSyncTime()
 	if err != nil {
-		return err
-	}
-	fmt.Printf("Save file path: %s\n", loadFilePath)
-	savedGraph, err := graph.LoadGraphFromFile(loadFilePath)
-	if errors.Is(err, os.ErrNotExist) {
-		fmt.Printf("Local graph does not exist -> loading it for the first time\n")
-		return firstLoad(graphPath, loadFilePath)
-	} else if err != nil {
 		return err
 	}
 
-	readGraph, err := graph.ReadGraph(graphPath)
+	remoteChanges, err := r.GetChanges(name, lastSync)
 	if err != nil {
 		return err
 	}
+
+	for i, change := range remoteChanges {
+		fmt.Printf("%d: %v", i, change)
+	}
+
+	_, err = getLocalChanges(graphPath, name)
+
+	return nil
+
+	/*
+		loadFilePath, err := getLoadFilePath(name)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Save file path: %s\n", loadFilePath)
+		savedGraph, err := graph.LoadGraphFromFile(loadFilePath)
+		if errors.Is(err, os.ErrNotExist) {
+			fmt.Printf("Local graph does not exist -> loading it for the first time\n")
+			return firstLoad(graphPath, loadFilePath)
+		} else if err != nil {
+			return err
+		}
+
+		readGraph, err := graph.ReadGraph(graphPath)
+		if err != nil {
+			return err
+		}
+
+		compResult := compare.Graphs(savedGraph, readGraph)
+		if compResult.NoChanges() {
+			fmt.Printf("No remoteChanges\n")
+		} else {
+			fmt.Printf("Changes\n")
+		}
+
+		return nil
+	*/
+}
+
+func getLocalChanges(graphPath string, graphName string) (compare.CompResult, error) {
+	readGraph, err := graph.ReadGraph(graphPath)
+	if err != nil {
+		return compare.CompResult{}, err
+	}
+
+	loadFilePath, err := getLoadFilePath(graphName)
+	if err != nil {
+		return compare.CompResult{}, err
+	}
+	fmt.Printf("Save file path: %s\n", loadFilePath)
+	savedGraph, err := graph.LoadGraphFromFile(loadFilePath)
 
 	compResult := compare.Graphs(savedGraph, readGraph)
 	if compResult.NoChanges() {
@@ -53,7 +98,7 @@ func syncGraph(graphPath string) error {
 		fmt.Printf("Changes\n")
 	}
 
-	return nil
+	return compResult, nil
 }
 
 func firstLoad(graphPath string, filePath string) error {
