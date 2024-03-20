@@ -13,9 +13,8 @@ var r *remote.Remote
 
 func Start(conf config.Config) {
 	r = remote.New(conf)
-	ticker := time.NewTicker(time.Duration(conf.Sync.Interval) * time.Second)
-	defer ticker.Stop()
-	for ; true; <-ticker.C {
+	ticker := time.Tick(time.Duration(conf.Sync.Interval) * time.Second)
+	for range ticker {
 		syncGraphs(conf.Sync.Graphs)
 		fmt.Println("Tick")
 	}
@@ -99,6 +98,9 @@ func getLocalChanges(g graph.Graph) (compare.Result, error) {
 	}
 	fmt.Printf("Save file path: %s\n", loadFilePath)
 	savedGraph, err := graph.LoadGraphFromFile(loadFilePath)
+	if err != nil {
+		return compare.Result{}, err
+	}
 
 	compResult := compare.Graphs(savedGraph, g)
 	if compResult.NoChanges() {

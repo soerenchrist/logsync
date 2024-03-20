@@ -3,6 +3,7 @@ package remote
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/soerenchrist/logsync/client/internal/config"
 	"github.com/soerenchrist/logsync/client/internal/graph"
@@ -30,7 +31,7 @@ func New(conf config.Config) *Remote {
 }
 
 func (r *Remote) GetChanges(graphName string, since time.Time) ([]ChangeLogEntry, error) {
-	url := fmt.Sprintf("%s/%s/changes?since=%s", r.conf.Server.Host, graphName, since.Format(time.RFC3339))
+	url := fmt.Sprintf("%s/%s/changes?since=%d", r.conf.Server.Host, graphName, since.UnixMilli())
 	resp, err := http.DefaultClient.Get(url)
 	if err != nil {
 		return nil, err
@@ -39,6 +40,10 @@ func (r *Remote) GetChanges(graphName string, since time.Time) ([]ChangeLogEntry
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
+	}
+
+	if resp.StatusCode != 200 {
+		return nil, errors.New("status code is no success")
 	}
 
 	var entries []ChangeLogEntry
