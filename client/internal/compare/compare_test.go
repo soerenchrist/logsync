@@ -31,14 +31,14 @@ func TestGraphs(t *testing.T) {
 		}
 
 		res := Graphs(graph1, graph2)
-		if len(res.deleted) != 0 {
-			t.Fatalf("Expected 0 deleted, got %d", len(res.deleted))
+		if len(res.Deleted) != 0 {
+			t.Fatalf("Expected 0 deleted, got %d", len(res.Deleted))
 		}
-		if len(res.changed) != 0 {
-			t.Fatalf("Expected 0 changed, got %d", len(res.changed))
+		if len(res.Changed) != 0 {
+			t.Fatalf("Expected 0 changed, got %d", len(res.Changed))
 		}
-		if len(res.created) != 0 {
-			t.Fatalf("Expected 0 created, got %d", len(res.created))
+		if len(res.Created) != 0 {
+			t.Fatalf("Expected 0 created, got %d", len(res.Created))
 		}
 	})
 
@@ -88,14 +88,14 @@ func TestGraphs(t *testing.T) {
 		}
 
 		res := Graphs(oldGraph, newGraph)
-		if len(res.deleted) != 1 {
-			t.Fatalf("Expected 1 deleted, got %d", len(res.deleted))
+		if len(res.Deleted) != 1 {
+			t.Fatalf("Expected 1 deleted, got %d", len(res.Deleted))
 		}
-		if len(res.changed) != 1 {
-			t.Fatalf("Expected 1 changed, got %d", len(res.changed))
+		if len(res.Changed) != 1 {
+			t.Fatalf("Expected 1 changed, got %d", len(res.Changed))
 		}
-		if len(res.created) != 1 {
-			t.Fatalf("Expected 1 created, got %d", len(res.created))
+		if len(res.Created) != 1 {
+			t.Fatalf("Expected 1 created, got %d", len(res.Created))
 		}
 	})
 }

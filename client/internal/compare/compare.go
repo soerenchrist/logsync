@@ -5,17 +5,17 @@ import (
 	"slices"
 )
 
-type CompResult struct {
-	changed []graph.File
-	created []graph.File
-	deleted []graph.File
+type Result struct {
+	Changed []graph.File
+	Created []graph.File
+	Deleted []graph.File
 }
 
-func (c CompResult) NoChanges() bool {
-	return len(c.changed) == 0 && len(c.deleted) == 0 && len(c.created) == 0
+func (c Result) NoChanges() bool {
+	return len(c.Changed) == 0 && len(c.Deleted) == 0 && len(c.Created) == 0
 }
 
-func Graphs(old graph.Graph, new graph.Graph) CompResult {
+func Graphs(old graph.Graph, new graph.Graph) Result {
 	created := make([]graph.File, 0)
 	changed := make([]graph.File, 0)
 	deleted := make([]graph.File, 0)
@@ -37,10 +37,10 @@ func Graphs(old graph.Graph, new graph.Graph) CompResult {
 		}
 	}
 
-	return CompResult{
-		created: created,
-		deleted: deleted,
-		changed: changed,
+	return Result{
+		Created: created,
+		Deleted: deleted,
+		Changed: changed,
 	}
 }
 
