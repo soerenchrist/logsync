@@ -10,6 +10,7 @@ import (
 type FileStore interface {
 	Store(graphName string, fileName string, reader io.Reader) error
 	Remove(graphName string, fileName string) error
+	Content(graphName string, fileName string) ([]byte, error)
 }
 
 type Files struct {
@@ -47,6 +48,12 @@ func (f Files) Remove(graphName string, fileName string) error {
 	filePath := path.Join(f.basePath, graphName, fileName)
 
 	return os.Remove(filePath)
+}
+
+func (f Files) Content(graphName string, fileName string) ([]byte, error) {
+	filePath := path.Join(f.basePath, graphName, fileName)
+
+	return os.ReadFile(filePath)
 }
 
 func (f Files) ensureGraphDirExists(graphName string) error {

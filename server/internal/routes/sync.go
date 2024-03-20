@@ -4,12 +4,30 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/render"
 	"github.com/soerenchrist/logsync/server/internal/model"
 	"net/http"
 	"os"
 	"slices"
 	"time"
 )
+
+func (c *Controller) content(writer http.ResponseWriter, request *http.Request) {
+	graphName := chi.URLParam(request, "graphID")
+	fileName := chi.URLParam(request, "fileID")
+
+	data, err := c.files.Content(graphName, fileName)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			http.Error(writer, "Not found", http.StatusNotFound)
+		} else {
+			http.Error(writer, "Could not delete file", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	render.Data(writer, request, data)
+}
 
 func (c *Controller) deleteFile(writer http.ResponseWriter, request *http.Request) {
 	graphName := chi.URLParam(request, "graphID")

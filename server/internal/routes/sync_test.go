@@ -90,10 +90,14 @@ func createRequest(method, url string, file []byte) *http.Request {
 type TestStore struct {
 }
 
-func (f TestStore) Store(graphName string, fileName string, reader io.Reader) error {
+func (TestStore) Store(graphName string, fileName string, reader io.Reader) error {
 	return nil
 }
 
-func (f TestStore) Remove(graphName string, fileName string) error {
+func (TestStore) Remove(graphName string, fileName string) error {
 	return nil
+}
+
+func (TestStore) Content(graphName string, fileName string) ([]byte, error) {
+	return nil, nil
 }
