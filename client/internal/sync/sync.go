@@ -42,7 +42,12 @@ func syncGraph(graphPath string) error {
 		fmt.Printf("Remote change %d: %v\n", i, change)
 	}
 
-	localChanges, err := getLocalChanges(graphPath, name)
+	readGraph, err := graph.ReadGraph(graphPath)
+	if err != nil {
+		return err
+	}
+
+	localChanges, err := getLocalChanges(readGraph)
 
 	conflicts := checkForConflicts(remoteChanges, localChanges)
 	for _, conflict := range conflicts {
@@ -54,6 +59,15 @@ func syncGraph(graphPath string) error {
 		return err
 	}
 	err = uploadChanges(name, localChanges, conflicts)
+	if err != nil {
+		return err
+	}
+
+	savePath, err := getLoadFilePath(readGraph.Name)
+	if err != nil {
+		return err
+	}
+	err = graph.SaveGraphToFile(readGraph, savePath)
 	if err != nil {
 		return err
 	}
@@ -78,20 +92,15 @@ func downloadChanges(changes []remote.ChangeLogEntry, conflicts []string) error 
 	return nil
 }
 
-func getLocalChanges(graphPath string, graphName string) (compare.Result, error) {
-	readGraph, err := graph.ReadGraph(graphPath)
-	if err != nil {
-		return compare.Result{}, err
-	}
-
-	loadFilePath, err := getLoadFilePath(graphName)
+func getLocalChanges(g graph.Graph) (compare.Result, error) {
+	loadFilePath, err := getLoadFilePath(g.Name)
 	if err != nil {
 		return compare.Result{}, err
 	}
 	fmt.Printf("Save file path: %s\n", loadFilePath)
 	savedGraph, err := graph.LoadGraphFromFile(loadFilePath)
 
-	compResult := compare.Graphs(savedGraph, readGraph)
+	compResult := compare.Graphs(savedGraph, g)
 	if compResult.NoChanges() {
 		fmt.Printf("No changes\n")
 	} else {
