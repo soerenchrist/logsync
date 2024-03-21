@@ -136,13 +136,13 @@ func downloadChanges(changes []remote.ChangeLogEntry, conflicts []string) error 
 				log.Error("Failed to download content", err)
 				continue
 			}
-			err = storeFile(change.FileId, content)
+			err = graph.StoreFile(change.FileId, content)
 			if err != nil {
 				log.Error("Failed to store file in local graph", err)
 				continue
 			}
 		} else if change.Operation == "D" {
-			err := removeFile(change.FileId)
+			err := graph.RemoveFile(change.FileId)
 			if err != nil {
 				log.Error("Failed to remove file in local graph", err)
 				continue

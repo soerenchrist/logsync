@@ -1,13 +1,12 @@
-package sync
+package graph
 
 import (
-	"github.com/soerenchrist/logsync/client/internal/graph"
 	"os"
 	"path"
 	"strings"
 )
 
-func storeFile(fileId string, content []byte) error {
+func StoreFile(fileId string, content []byte) error {
 	p := getPathByFileId(fileId)
 
 	file, err := os.Create(p)
@@ -20,14 +19,14 @@ func storeFile(fileId string, content []byte) error {
 	return err
 }
 
-// TODO: maybe introduce some kind of trash bin
-func removeFile(fileId string) error {
+// RemoveFile TODO: maybe introduce some kind of trash bin
+func RemoveFile(fileId string) error {
 	p := getPathByFileId(fileId)
 
 	return os.Remove(p)
 }
 
 func getPathByFileId(fileId string) string {
-	parts := strings.Split(fileId, graph.Separator)
+	parts := strings.Split(fileId, Separator)
 	return path.Join(parts...)
 }
