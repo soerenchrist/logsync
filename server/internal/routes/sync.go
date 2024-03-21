@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"slices"
+	"strconv"
 	"time"
 )
 
@@ -41,7 +42,21 @@ func (c *Controller) deleteFile(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 
-	err := c.files.Remove(graphName, fileName)
+	timestamp, err := readModifiedDateFromQuery(request)
+	if err != nil {
+		http.Error(writer, "Missing modified_date query param", http.StatusBadRequest)
+		return
+	}
+
+	// check of duplicate entry
+	var existing []model.ChangeLogEntry
+	c.db.Where("timestamp = ? AND file_id = ? and graph_name = ?", timestamp, fileName, graphName).Find(&existing)
+	if len(existing) > 0 {
+		writer.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	err = c.files.Remove(graphName, fileName)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			http.Error(writer, "Not found", http.StatusNotFound)
@@ -51,21 +66,9 @@ func (c *Controller) deleteFile(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 
-	timestamp, err := readModifiedDate(request)
-	if err != nil {
-		http.Error(writer, "Missing modified-date", http.StatusBadRequest)
-		return
-	}
-
-	fileId := request.FormValue("file-id")
-	if fileId == "" {
-		http.Error(writer, "Missing file-id", http.StatusBadRequest)
-		return
-	}
-
 	entry := model.ChangeLogEntry{
 		GraphName:   graphName,
-		FileId:      fileId,
+		FileId:      fileName,
 		Operation:   model.Deleted,
 		Timestamp:   timestamp,
 		FileName:    fileName,
@@ -107,7 +110,7 @@ func (c *Controller) uploadFile(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 
-	timestamp, err := readModifiedDate(request)
+	timestamp, err := readModifiedDateFromForm(request)
 	if err != nil {
 		http.Error(writer, "Could not parse modified-date", http.StatusBadRequest)
 		return
@@ -121,6 +124,14 @@ func (c *Controller) uploadFile(writer http.ResponseWriter, request *http.Reques
 	opType, err := validateOperation(operation)
 	if err != nil {
 		http.Error(writer, fmt.Sprintf("Invalid operation type, allowed values: %v", uploadAllowedOperationTypes), http.StatusBadRequest)
+		return
+	}
+
+	// check of duplicate entry
+	var existing []model.ChangeLogEntry
+	c.db.Where("timestamp = ? AND file_id = ? and graph_name = ?", timestamp, fileId, graphName).Find(&existing)
+	if len(existing) > 0 {
+		writer.WriteHeader(http.StatusCreated)
 		return
 	}
 
@@ -151,7 +162,7 @@ var uploadAllowedOperationTypes = []model.OperationType{
 	model.Modified, model.Created,
 }
 
-func readModifiedDate(request *http.Request) (time.Time, error) {
+func readModifiedDateFromForm(request *http.Request) (time.Time, error) {
 	modifiedDate := request.FormValue("modified-date")
 	if modifiedDate == "" {
 		return time.Now(), nil
@@ -160,6 +171,20 @@ func readModifiedDate(request *http.Request) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, err
 	}
+	return timestamp, nil
+}
+
+func readModifiedDateFromQuery(request *http.Request) (time.Time, error) {
+	modifiedDate := request.URL.Query().Get("modified_date")
+	if modifiedDate == "" {
+		return time.Now(), nil
+	}
+
+	millis, err := strconv.ParseInt(modifiedDate, 10, 64)
+	if err != nil {
+		return time.Now(), err
+	}
+	timestamp := time.UnixMilli(millis)
 	return timestamp, nil
 }
 

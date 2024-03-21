@@ -75,7 +75,7 @@ func (r *Remote) GetContent(graphName string, fileId string) ([]byte, error) {
 }
 
 func (r *Remote) DeleteFile(graphName string, file graph.File, transaction string) error {
-	url := fmt.Sprintf("%s/%s/delete/%s?ta_id=%s", r.conf.Server.Host, graphName, file.Id, transaction)
+	url := fmt.Sprintf("%s/%s/delete/%s?ta_id=%s&modified_date=%d", r.conf.Server.Host, graphName, file.Id, transaction, file.LastChange.UnixMilli())
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
 		return err
