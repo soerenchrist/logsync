@@ -52,6 +52,7 @@ func syncGraph(graphPath string) error {
 		return err
 	}
 
+	// TODO: handle conflicts
 	conflicts := checkForConflicts(remoteChanges, localChanges)
 	log.Info("Found %d conflicts", len(conflicts))
 
@@ -68,6 +69,10 @@ func syncGraph(graphPath string) error {
 	if err != nil {
 		return err
 	}
+
+	// need to reread the graph after updating
+	// TODO: could do the update in memory to save the second read
+	readGraph, _ = graph.ReadGraph(graphPath)
 	err = graph.SaveGraphToFile(readGraph, savePath)
 	if err != nil {
 		return err
@@ -134,6 +139,12 @@ func downloadChanges(changes []remote.ChangeLogEntry, conflicts []string) error 
 			err = storeFile(change.FileId, content)
 			if err != nil {
 				log.Error("Failed to store file in local graph", err)
+				continue
+			}
+		} else if change.Operation == "D" {
+			err := removeFile(change.FileId)
+			if err != nil {
+				log.Error("Failed to remove file in local graph", err)
 				continue
 			}
 		}

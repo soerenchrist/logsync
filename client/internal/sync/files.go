@@ -20,6 +20,13 @@ func storeFile(fileId string, content []byte) error {
 	return err
 }
 
+// TODO: maybe introduce some kind of trash bin
+func removeFile(fileId string) error {
+	p := getPathByFileId(fileId)
+
+	return os.Remove(p)
+}
+
 func getPathByFileId(fileId string) string {
 	parts := strings.Split(fileId, graph.Separator)
 	return path.Join(parts...)
