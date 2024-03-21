@@ -31,6 +31,7 @@ func main() {
 	c := routes.NewController(db, r, f)
 	c.MapEndpoints()
 
+	fmt.Printf("Server is listening on %s", conf.Url())
 	err = http.ListenAndServe(conf.Url(), r)
 	if err != nil {
 		panic(err)

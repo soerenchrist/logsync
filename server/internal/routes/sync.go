@@ -19,9 +19,11 @@ func (c *Controller) content(writer http.ResponseWriter, request *http.Request) 
 	data, err := c.files.Content(graphName, fileName)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
+			fmt.Printf("File %s not found", fileName)
 			http.Error(writer, "Not found", http.StatusNotFound)
 		} else {
-			http.Error(writer, "Could not delete file", http.StatusInternalServerError)
+			fmt.Printf("Could not read file %s, %v", fileName, err)
+			http.Error(writer, "Could not read file", http.StatusInternalServerError)
 		}
 		return
 	}

@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-var Separator = "|"
+var Separator = "___"
 
 var skipFolders = []string{"logseq"}
 

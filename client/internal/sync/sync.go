@@ -119,6 +119,25 @@ func uploadChanges(graphName string, changes compare.Result, transaction uuid.UU
 
 func downloadChanges(changes []remote.ChangeLogEntry, conflicts []string) error {
 	log.Info("Downloading changes from server")
+	for _, change := range changes {
+		if slices.Contains(conflicts, change.FileId) {
+			log.Info("Skipping download of file %s", change.FileId)
+			continue
+		}
+		log.Info("Found change with transaction %s for file %s", change.Transaction, change.FileId)
+		if change.Operation == "C" || change.Operation == "M" {
+			content, err := r.GetContent(change.GraphName, change.FileId)
+			if err != nil {
+				log.Error("Failed to download content", err)
+				continue
+			}
+			err = storeFile(change.FileId, content)
+			if err != nil {
+				log.Error("Failed to store file in local graph", err)
+				continue
+			}
+		}
+	}
 	return nil
 }
 

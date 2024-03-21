@@ -56,6 +56,24 @@ func (r *Remote) GetChanges(graphName string, since time.Time) ([]ChangeLogEntry
 	return entries, nil
 }
 
+func (r *Remote) GetContent(graphName string, fileId string) ([]byte, error) {
+	url := fmt.Sprintf("%s/%s/content/%s", r.conf.Server.Host, graphName, fileId)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.New(fmt.Sprintf("no success status code: %d", resp.StatusCode))
+	}
+
+	return io.ReadAll(resp.Body)
+}
+
 func (r *Remote) DeleteFile(graphName string, file graph.File, transaction string) error {
 	url := fmt.Sprintf("%s/%s/delete/%s?ta_id=%s", r.conf.Server.Host, graphName, file.Id, transaction)
 	req, err := http.NewRequest("DELETE", url, nil)
