@@ -2,6 +2,7 @@ package model
 
 import (
 	"github.com/glebarez/sqlite"
+	"github.com/soerenchrist/logsync/server/internal/log"
 	"gorm.io/gorm"
 	"time"
 )
@@ -23,13 +24,17 @@ type ChangeLogEntry struct {
 }
 
 func CreateDb(path string) (*gorm.DB, error) {
+	log.Debug("Connecting to database", "path", path)
 	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{})
 	if err != nil {
+		log.Error("Could not connect to database", "error", err)
 		return nil, err
 	}
 
+	log.Debug("Migrating database")
 	err = db.AutoMigrate(&ChangeLogEntry{})
 	if err != nil {
+		log.Error("Could migrate database", "error", err)
 		return nil, err
 	}
 
