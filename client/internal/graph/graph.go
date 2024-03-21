@@ -11,7 +11,7 @@ import (
 
 var Separator = "___"
 
-var skipFolders = []string{"logseq"}
+var skipFolders = []string{"bak", ".recycle"}
 
 type Graph struct {
 	Name  string `json:"name"`
