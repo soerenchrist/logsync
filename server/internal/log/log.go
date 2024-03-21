@@ -28,3 +28,7 @@ func Error(msg string, args ...any) {
 func Info(msg string, args ...any) {
 	logger.Info(msg, args...)
 }
+
+func With(args []any) *slog.Logger {
+	return logger.With(args...)
+}
