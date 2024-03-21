@@ -18,7 +18,6 @@ type ChangeLogEntry struct {
 	GraphName   string        `gorm:"primaryKey" json:"graph_name"`
 	FileId      string        `gorm:"primaryKey" json:"file_id"`
 	Timestamp   time.Time     `gorm:"primaryKey" json:"timestamp"`
-	FileName    string        `json:"file_name"`
 	Transaction string        `json:"transaction"`
 	Operation   OperationType `json:"operation"`
 }

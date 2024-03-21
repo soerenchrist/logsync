@@ -22,7 +22,6 @@ type ChangeLogEntry struct {
 	GraphName   string    `json:"graph_name"`
 	FileId      string    `json:"file_id"`
 	Timestamp   time.Time `json:"timestamp"`
-	FileName    string    `json:"file_name"`
 	Transaction string    `json:"transaction"`
 	Operation   string    `json:"operation"`
 }

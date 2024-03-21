@@ -71,7 +71,6 @@ func (c *Controller) deleteFile(writer http.ResponseWriter, request *http.Reques
 		FileId:      fileName,
 		Operation:   model.Deleted,
 		Timestamp:   timestamp,
-		FileName:    fileName,
 		Transaction: transaction,
 	}
 	tx := c.db.Create(entry)
@@ -140,7 +139,6 @@ func (c *Controller) uploadFile(writer http.ResponseWriter, request *http.Reques
 		FileId:      header.Filename,
 		Operation:   opType,
 		Timestamp:   timestamp,
-		FileName:    header.Filename,
 		Transaction: transaction,
 	}
 	tx := c.db.Create(entry)
