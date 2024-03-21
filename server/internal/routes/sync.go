@@ -98,12 +98,6 @@ func (c *Controller) uploadFile(writer http.ResponseWriter, request *http.Reques
 	}
 	defer file.Close()
 
-	fileId := request.FormValue("file-id")
-	if fileId == "" {
-		http.Error(writer, "Missing file-id", http.StatusBadRequest)
-		return
-	}
-
 	transaction := request.FormValue("ta-id")
 	if transaction == "" {
 		http.Error(writer, "Missing ta-id", http.StatusBadRequest)
@@ -129,7 +123,7 @@ func (c *Controller) uploadFile(writer http.ResponseWriter, request *http.Reques
 
 	// check of duplicate entry
 	var existing []model.ChangeLogEntry
-	c.db.Where("timestamp = ? AND file_id = ? and graph_name = ?", timestamp, fileId, graphName).Find(&existing)
+	c.db.Where("timestamp = ? AND file_id = ? and graph_name = ?", timestamp, header.Filename, graphName).Find(&existing)
 	if len(existing) > 0 {
 		writer.WriteHeader(http.StatusCreated)
 		return
@@ -143,7 +137,7 @@ func (c *Controller) uploadFile(writer http.ResponseWriter, request *http.Reques
 
 	entry := model.ChangeLogEntry{
 		GraphName:   graphName,
-		FileId:      fileId,
+		FileId:      header.Filename,
 		Operation:   opType,
 		Timestamp:   timestamp,
 		FileName:    header.Filename,

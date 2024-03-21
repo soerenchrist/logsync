@@ -6,8 +6,9 @@ import (
 	"strings"
 )
 
-func StoreFile(fileId string, content []byte) error {
+func StoreFile(graphPath, fileId string, content []byte) error {
 	p := getPathByFileId(fileId)
+	p = path.Join(graphPath, p)
 
 	file, err := os.Create(p)
 	if err != nil {
@@ -20,8 +21,9 @@ func StoreFile(fileId string, content []byte) error {
 }
 
 // RemoveFile TODO: maybe introduce some kind of trash bin
-func RemoveFile(fileId string) error {
+func RemoveFile(graphPath, fileId string) error {
 	p := getPathByFileId(fileId)
+	p = path.Join(graphPath, p)
 
 	return os.Remove(p)
 }

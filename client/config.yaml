@@ -2,7 +2,8 @@ encryption:
   enabled: false
 sync:
   graphs:
-    - D:\10_Notizen\Work
+    - D:\10_Notizen\Test
   interval: 10
+  once: true
 server:
   host: http://localhost:3000

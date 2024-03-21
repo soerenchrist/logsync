@@ -13,6 +13,7 @@ type Config struct {
 type SyncConfig struct {
 	Graphs   []string
 	Interval int
+	Once     bool
 }
 type EncryptionConfig struct {
 	enabled bool
@@ -45,6 +46,7 @@ func defineDefaults() {
 	viper.SetDefault("graphs", []string{})
 
 	viper.SetDefault("sync.interval", 60)
+	viper.SetDefault("sync.once", false)
 }
 
 func getConfig() Config {
@@ -56,6 +58,7 @@ func getConfig() Config {
 		Sync: SyncConfig{
 			Graphs:   viper.GetStringSlice("sync.graphs"),
 			Interval: viper.GetInt("sync.interval"),
+			Once:     viper.GetBool("sync.once"),
 		},
 		Server: ServerConfig{
 			Host: viper.GetString("server.host"),

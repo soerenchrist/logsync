@@ -15,6 +15,12 @@ var r *remote.Remote
 
 func Start(conf config.Config) {
 	r = remote.New(conf)
+	if conf.Sync.Once {
+		log.Info("Syncing graphs once")
+		syncGraphs(conf.Sync.Graphs)
+		return
+	}
+
 	ticker := time.Tick(time.Duration(conf.Sync.Interval) * time.Second)
 	for range ticker {
 		log.Info("Starting sync of graphs")
@@ -56,7 +62,7 @@ func syncGraph(graphPath string) error {
 	conflicts := checkForConflicts(remoteChanges, localChanges)
 	log.Info("Found %d conflicts", len(conflicts))
 
-	err = downloadChanges(remoteChanges, conflicts)
+	err = downloadChanges(graphPath, remoteChanges, conflicts)
 	if err != nil {
 		return err
 	}
@@ -122,7 +128,7 @@ func uploadChanges(graphName string, changes compare.Result, transaction uuid.UU
 	return nil
 }
 
-func downloadChanges(changes []remote.ChangeLogEntry, conflicts []string) error {
+func downloadChanges(graphPath string, changes []remote.ChangeLogEntry, conflicts []string) error {
 	log.Info("Downloading changes from server")
 	for _, change := range changes {
 		if slices.Contains(conflicts, change.FileId) {
@@ -136,13 +142,13 @@ func downloadChanges(changes []remote.ChangeLogEntry, conflicts []string) error 
 				log.Error("Failed to download content", err)
 				continue
 			}
-			err = graph.StoreFile(change.FileId, content)
+			err = graph.StoreFile(graphPath, change.FileId, content)
 			if err != nil {
 				log.Error("Failed to store file in local graph", err)
 				continue
 			}
 		} else if change.Operation == "D" {
-			err := graph.RemoveFile(change.FileId)
+			err := graph.RemoveFile(graphPath, change.FileId)
 			if err != nil {
 				log.Error("Failed to remove file in local graph", err)
 				continue

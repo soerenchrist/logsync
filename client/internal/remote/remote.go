@@ -97,7 +97,7 @@ func (r *Remote) UploadFile(graphName string, file graph.File, transaction, oper
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
 
-	fileWriter, err := mw.CreateFormFile("file", file.Path)
+	fileWriter, err := mw.CreateFormFile("file", file.Id)
 	if err != nil {
 		return err
 	}
@@ -106,11 +106,6 @@ func (r *Remote) UploadFile(graphName string, file graph.File, transaction, oper
 		return err
 	}
 	_, err = fileWriter.Write(contents)
-	if err != nil {
-		return err
-	}
-
-	err = addFormField(mw, "file-id", file.Id)
 	if err != nil {
 		return err
 	}
@@ -145,13 +140,12 @@ func (r *Remote) UploadFile(graphName string, file graph.File, transaction, oper
 		return err
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
+	if resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Printf("Message: %s\n", body)
+		fmt.Printf("Status-code: %d\n", resp.StatusCode)
+		return errors.New(fmt.Sprintf("no success status code: %d", resp.StatusCode))
 	}
-
-	fmt.Printf("Message: %s\n", body)
-	fmt.Printf("Status-code: %d\n", resp.StatusCode)
 	return nil
 }
 
