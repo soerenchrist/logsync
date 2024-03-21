@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"github.com/google/uuid"
 	"github.com/soerenchrist/logsync/client/internal/compare"
 	"github.com/soerenchrist/logsync/client/internal/config"
 	"github.com/soerenchrist/logsync/client/internal/graph"
@@ -26,6 +27,7 @@ func syncGraph(graphPath string) error {
 	if err != nil {
 		return err
 	}
+	transaction, _ := uuid.NewUUID()
 	log.Info("Graph name: %s", name)
 
 	lastSync, err := getLastSyncTime()
@@ -57,7 +59,7 @@ func syncGraph(graphPath string) error {
 	if err != nil {
 		return err
 	}
-	err = uploadChanges(name, localChanges, conflicts)
+	err = uploadChanges(name, localChanges, transaction, conflicts)
 	if err != nil {
 		return err
 	}
@@ -74,7 +76,7 @@ func syncGraph(graphPath string) error {
 	return nil
 }
 
-func uploadChanges(graphName string, changes compare.Result, conflicts []string) error {
+func uploadChanges(graphName string, changes compare.Result, transaction uuid.UUID, conflicts []string) error {
 	log.Info("Uploading changes to server")
 	for _, created := range changes.Created {
 		if slices.Contains(conflicts, created.Id) {
@@ -82,7 +84,7 @@ func uploadChanges(graphName string, changes compare.Result, conflicts []string)
 			continue
 		}
 		log.Info("Uploading created file: %s", created.Id)
-		err := r.UploadFile(graphName, created, "C")
+		err := r.UploadFile(graphName, created, transaction.String(), "C")
 		if err != nil {
 			log.Error("Failed to upload", err)
 		}
@@ -94,7 +96,7 @@ func uploadChanges(graphName string, changes compare.Result, conflicts []string)
 			continue
 		}
 		log.Info("Uploading changed file: %s", changed.Id)
-		err := r.UploadFile(graphName, changed, "M")
+		err := r.UploadFile(graphName, changed, transaction.String(), "M")
 		if err != nil {
 			log.Error("Failed to upload change", err)
 		}
@@ -106,7 +108,7 @@ func uploadChanges(graphName string, changes compare.Result, conflicts []string)
 			continue
 		}
 		log.Info("Deleting file: %s", deleted.Id)
-		err := r.DeleteFile(graphName, deleted)
+		err := r.DeleteFile(graphName, deleted, transaction.String())
 		if err != nil {
 			log.Error("Failed to delete", err)
 		}

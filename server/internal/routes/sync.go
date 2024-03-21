@@ -33,6 +33,12 @@ func (c *Controller) deleteFile(writer http.ResponseWriter, request *http.Reques
 	graphName := chi.URLParam(request, "graphID")
 	fileName := chi.URLParam(request, "fileID")
 
+	transaction := request.URL.Query().Get("ta_id")
+	if transaction == "" {
+		http.Error(writer, "ta_id query is missing", http.StatusBadRequest)
+		return
+	}
+
 	err := c.files.Remove(graphName, fileName)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -56,11 +62,12 @@ func (c *Controller) deleteFile(writer http.ResponseWriter, request *http.Reques
 	}
 
 	entry := model.ChangeLogEntry{
-		GraphName: graphName,
-		FileId:    fileId,
-		Operation: model.Deleted,
-		Timestamp: timestamp,
-		FileName:  fileName,
+		GraphName:   graphName,
+		FileId:      fileId,
+		Operation:   model.Deleted,
+		Timestamp:   timestamp,
+		FileName:    fileName,
+		Transaction: transaction,
 	}
 	tx := c.db.Create(entry)
 	if tx.Error != nil {
@@ -92,6 +99,12 @@ func (c *Controller) uploadFile(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 
+	transaction := request.FormValue("ta-id")
+	if transaction == "" {
+		http.Error(writer, "Missing ta-id", http.StatusBadRequest)
+		return
+	}
+
 	timestamp, err := readModifiedDate(request)
 	if err != nil {
 		http.Error(writer, "Could not parse modified-date", http.StatusBadRequest)
@@ -116,11 +129,12 @@ func (c *Controller) uploadFile(writer http.ResponseWriter, request *http.Reques
 	}
 
 	entry := model.ChangeLogEntry{
-		GraphName: graphName,
-		FileId:    fileId,
-		Operation: opType,
-		Timestamp: timestamp,
-		FileName:  header.Filename,
+		GraphName:   graphName,
+		FileId:      fileId,
+		Operation:   opType,
+		Timestamp:   timestamp,
+		FileName:    header.Filename,
+		Transaction: transaction,
 	}
 	tx := c.db.Create(entry)
 	if tx.Error != nil {

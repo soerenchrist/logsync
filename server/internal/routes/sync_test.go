@@ -77,6 +77,9 @@ func createRequest(method, url string, file []byte) *http.Request {
 	fileIdWriter, _ := mw.CreateFormField("file-id")
 	_, _ = fileIdWriter.Write([]byte("testId"))
 
+	taWriter, _ := mw.CreateFormField("ta-id")
+	_, _ = taWriter.Write([]byte("transaction"))
+
 	opWriter, _ := mw.CreateFormField("operation")
 	_, _ = opWriter.Write([]byte("C"))
 

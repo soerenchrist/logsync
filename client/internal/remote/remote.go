@@ -19,11 +19,12 @@ type Remote struct {
 }
 
 type ChangeLogEntry struct {
-	GraphName string    `json:"graph_name"`
-	FileId    string    `json:"file_id"`
-	Timestamp time.Time `json:"timestamp"`
-	FileName  string    `json:"file_name"`
-	Operation string    `json:"operation"`
+	GraphName   string    `json:"graph_name"`
+	FileId      string    `json:"file_id"`
+	Timestamp   time.Time `json:"timestamp"`
+	FileName    string    `json:"file_name"`
+	Transaction string    `json:"transaction"`
+	Operation   string    `json:"operation"`
 }
 
 func New(conf config.Config) *Remote {
@@ -55,8 +56,8 @@ func (r *Remote) GetChanges(graphName string, since time.Time) ([]ChangeLogEntry
 	return entries, nil
 }
 
-func (r *Remote) DeleteFile(graphName string, file graph.File) error {
-	url := fmt.Sprintf("%s/%s/delete/%s", r.conf.Server.Host, graphName, file.Id)
+func (r *Remote) DeleteFile(graphName string, file graph.File, transaction string) error {
+	url := fmt.Sprintf("%s/%s/delete/%s?ta_id=%s", r.conf.Server.Host, graphName, file.Id, transaction)
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
 		return err
@@ -73,7 +74,7 @@ func (r *Remote) DeleteFile(graphName string, file graph.File) error {
 	return nil
 }
 
-func (r *Remote) UploadFile(graphName string, file graph.File, operation string) error {
+func (r *Remote) UploadFile(graphName string, file graph.File, transaction, operation string) error {
 	url := fmt.Sprintf("%s/%s/upload", r.conf.Server.Host, graphName)
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
@@ -92,6 +93,11 @@ func (r *Remote) UploadFile(graphName string, file graph.File, operation string)
 	}
 
 	err = addFormField(mw, "file-id", file.Id)
+	if err != nil {
+		return err
+	}
+
+	err = addFormField(mw, "ta-id", transaction)
 	if err != nil {
 		return err
 	}
