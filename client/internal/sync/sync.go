@@ -1,11 +1,12 @@
 package sync
 
 import (
-	"fmt"
 	"github.com/soerenchrist/logsync/client/internal/compare"
 	"github.com/soerenchrist/logsync/client/internal/config"
 	"github.com/soerenchrist/logsync/client/internal/graph"
+	"github.com/soerenchrist/logsync/client/internal/log"
 	"github.com/soerenchrist/logsync/client/internal/remote"
+	"slices"
 	"time"
 )
 
@@ -15,8 +16,8 @@ func Start(conf config.Config) {
 	r = remote.New(conf)
 	ticker := time.Tick(time.Duration(conf.Sync.Interval) * time.Second)
 	for range ticker {
+		log.Info("Starting sync of graphs")
 		syncGraphs(conf.Sync.Graphs)
-		fmt.Println("Tick")
 	}
 }
 
@@ -25,21 +26,19 @@ func syncGraph(graphPath string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Graph name: %s\n", name)
+	log.Info("Graph name: %s", name)
 
 	lastSync, err := getLastSyncTime()
 	if err != nil {
 		return err
 	}
+	log.Info("Last sync was %v", lastSync)
 
 	remoteChanges, err := r.GetChanges(name, lastSync)
 	if err != nil {
 		return err
 	}
-
-	for i, change := range remoteChanges {
-		fmt.Printf("Remote change %d: %v\n", i, change)
-	}
+	log.Info("Found %d remote changes", len(remoteChanges))
 
 	readGraph, err := graph.ReadGraph(graphPath)
 	if err != nil {
@@ -47,11 +46,12 @@ func syncGraph(graphPath string) error {
 	}
 
 	localChanges, err := getLocalChanges(readGraph)
+	if err != nil {
+		return err
+	}
 
 	conflicts := checkForConflicts(remoteChanges, localChanges)
-	for _, conflict := range conflicts {
-		fmt.Printf("Conflict found for file: %s\n", conflict)
-	}
+	log.Info("Found %d conflicts", len(conflicts))
 
 	err = downloadChanges(remoteChanges, conflicts)
 	if err != nil {
@@ -75,11 +75,40 @@ func syncGraph(graphPath string) error {
 }
 
 func uploadChanges(graphName string, changes compare.Result, conflicts []string) error {
-	fmt.Printf("Uploading created files")
+	log.Info("Uploading changes to server")
 	for _, created := range changes.Created {
+		if slices.Contains(conflicts, created.Id) {
+			log.Info("Skipping upload for conflict file %s", created.Id)
+			continue
+		}
+		log.Info("Uploading created file: %s", created.Id)
 		err := r.UploadFile(graphName, created, "C")
 		if err != nil {
-			fmt.Printf("error: %v\n", err)
+			log.Error("Failed to upload", err)
+		}
+	}
+
+	for _, changed := range changes.Changed {
+		if slices.Contains(conflicts, changed.Id) {
+			log.Info("Skipping upload for conflict file %s", changed.Id)
+			continue
+		}
+		log.Info("Uploading changed file: %s", changed.Id)
+		err := r.UploadFile(graphName, changed, "M")
+		if err != nil {
+			log.Error("Failed to upload change", err)
+		}
+	}
+
+	for _, deleted := range changes.Deleted {
+		if slices.Contains(conflicts, deleted.Id) {
+			log.Info("Skipping deletion for conflict file %s", deleted.Id)
+			continue
+		}
+		log.Info("Deleting file: %s", deleted.Id)
+		err := r.DeleteFile(graphName, deleted)
+		if err != nil {
+			log.Error("Failed to delete", err)
 		}
 	}
 
@@ -87,7 +116,7 @@ func uploadChanges(graphName string, changes compare.Result, conflicts []string)
 }
 
 func downloadChanges(changes []remote.ChangeLogEntry, conflicts []string) error {
-
+	log.Info("Downloading changes from server")
 	return nil
 }
 
@@ -96,40 +125,25 @@ func getLocalChanges(g graph.Graph) (compare.Result, error) {
 	if err != nil {
 		return compare.Result{}, err
 	}
-	fmt.Printf("Save file path: %s\n", loadFilePath)
+	log.Info("Save file path: %s", loadFilePath)
 	savedGraph, err := graph.LoadGraphFromFile(loadFilePath)
 	if err != nil {
 		return compare.Result{}, err
 	}
 
 	compResult := compare.Graphs(savedGraph, g)
-	if compResult.NoChanges() {
-		fmt.Printf("No changes\n")
-	} else {
-		fmt.Printf("Changes\n")
-	}
-
 	return compResult, nil
-}
-
-func firstLoad(graphPath string, filePath string) error {
-	g, err := graph.ReadGraph(graphPath)
-	if err != nil {
-		return err
-	}
-
-	return graph.SaveGraphToFile(g, filePath)
 }
 
 func syncGraphs(graphs []string) {
 	for _, graphPath := range graphs {
 		err := syncGraph(graphPath)
 		if err != nil {
-			fmt.Printf("Failed to sync: %v\n", err)
+			log.Error("Failed to sync", err)
 		}
 	}
 	err := saveLastSyncTime(time.Now())
 	if err != nil {
-		fmt.Printf("Failed to save last sync time: %v\n", err)
+		log.Error("Failed to save last sync time", err)
 	}
 }
