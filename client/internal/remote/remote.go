@@ -6,11 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/soerenchrist/logsync/client/internal/config"
-	"github.com/soerenchrist/logsync/client/internal/graph"
 	"io"
 	"mime/multipart"
 	"net/http"
-	"os"
 	"time"
 )
 
@@ -73,8 +71,24 @@ func (r *Remote) GetContent(graphName string, fileId string) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
-func (r *Remote) DeleteFile(graphName string, file graph.File, transaction string) error {
-	url := fmt.Sprintf("%s/%s/delete/%s?ta_id=%s&modified_date=%d", r.conf.Server.Host, graphName, file.Id, transaction, file.LastChange.UnixMilli())
+type Request struct {
+	config      config.Config
+	graphName   string
+	transaction string
+	operation   string
+}
+
+func NewRequest(conf config.Config, graphName, transaction, operation string) Request {
+	return Request{
+		config:      conf,
+		graphName:   graphName,
+		transaction: transaction,
+		operation:   operation,
+	}
+}
+
+func (r Request) SendDelete(filename string, modified time.Time) error {
+	url := fmt.Sprintf("%s/%s/delete/%s?ta_id=%s&modified_date=%d", r.config.Server.Host, r.graphName, filename, r.transaction, modified.UnixMilli())
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
 		return err
@@ -91,35 +105,32 @@ func (r *Remote) DeleteFile(graphName string, file graph.File, transaction strin
 	return nil
 }
 
-func (r *Remote) UploadFile(graphName string, file graph.File, transaction, operation string) error {
-	url := fmt.Sprintf("%s/%s/upload", r.conf.Server.Host, graphName)
+func (r Request) SendUpload(filename string, modified time.Time, body []byte) error {
+	url := fmt.Sprintf("%s/%s/upload", r.config.Server.Host, r.graphName)
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
 
-	fileWriter, err := mw.CreateFormFile("file", file.Id)
-	if err != nil {
-		return err
-	}
-	contents, err := os.ReadFile(file.Path)
-	if err != nil {
-		return err
-	}
-	_, err = fileWriter.Write(contents)
+	fileWriter, err := mw.CreateFormFile("file", filename)
 	if err != nil {
 		return err
 	}
 
-	err = addFormField(mw, "ta-id", transaction)
+	_, err = fileWriter.Write(body)
 	if err != nil {
 		return err
 	}
 
-	err = addFormField(mw, "operation", operation)
+	err = addFormField(mw, "ta-id", r.transaction)
 	if err != nil {
 		return err
 	}
 
-	err = addFormField(mw, "modified-date", file.LastChange.Format(time.RFC3339))
+	err = addFormField(mw, "operation", r.operation)
+	if err != nil {
+		return err
+	}
+
+	err = addFormField(mw, "modified-date", modified.Format(time.RFC3339))
 	if err != nil {
 		return err
 	}
@@ -140,8 +151,8 @@ func (r *Remote) UploadFile(graphName string, file graph.File, transaction, oper
 	}
 
 	if resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
-		fmt.Printf("Message: %s\n", body)
+		respBody, _ := io.ReadAll(resp.Body)
+		fmt.Printf("Message: %s\n", respBody)
 		fmt.Printf("Status-code: %d\n", resp.StatusCode)
 		return errors.New(fmt.Sprintf("no success status code: %d", resp.StatusCode))
 	}

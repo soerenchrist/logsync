@@ -16,8 +16,8 @@ type SyncConfig struct {
 	Once     bool
 }
 type EncryptionConfig struct {
-	enabled bool
-	key     string
+	Enabled bool
+	Key     string
 }
 
 type ServerConfig struct {
@@ -52,8 +52,8 @@ func defineDefaults() {
 func getConfig() Config {
 	return Config{
 		Encryption: EncryptionConfig{
-			enabled: viper.GetBool("encryption.enabled"),
-			key:     viper.GetString("encryption.key"),
+			Enabled: viper.GetBool("encryption.enabled"),
+			Key:     viper.GetString("encryption.key"),
 		},
 		Sync: SyncConfig{
 			Graphs:   viper.GetStringSlice("sync.graphs"),

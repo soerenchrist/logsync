@@ -4,21 +4,26 @@ import (
 	"github.com/google/uuid"
 	"github.com/soerenchrist/logsync/client/internal/compare"
 	"github.com/soerenchrist/logsync/client/internal/config"
+	"github.com/soerenchrist/logsync/client/internal/crypt"
 	"github.com/soerenchrist/logsync/client/internal/graph"
 	"github.com/soerenchrist/logsync/client/internal/log"
 	"github.com/soerenchrist/logsync/client/internal/remote"
+	"io"
+	"os"
 	"slices"
 	"time"
 )
 
 type graphSyncer struct {
+	config      config.Config
 	remote      *remote.Remote
 	basePath    string
 	transaction string
 	name        string
 }
 
-func newSyncer(graphPath string, r *remote.Remote) (graphSyncer, error) {
+func newSyncer(graphPath string, conf config.Config) (graphSyncer, error) {
+	r := remote.New(conf)
 	name, err := graph.GetNameByPath(graphPath)
 	if err != nil {
 		return graphSyncer{}, err
@@ -26,6 +31,7 @@ func newSyncer(graphPath string, r *remote.Remote) (graphSyncer, error) {
 	transaction, _ := uuid.NewUUID()
 	log.Info("Graph name: %s", name)
 	return graphSyncer{
+		config:      conf,
 		transaction: transaction.String(),
 		basePath:    graphPath,
 		remote:      r,
@@ -48,9 +54,8 @@ func Start(conf config.Config) {
 }
 
 func syncGraphs(conf config.Config) {
-	r := remote.New(conf)
 	for _, graphPath := range conf.Sync.Graphs {
-		syncer, err := newSyncer(graphPath, r)
+		syncer, err := newSyncer(graphPath, conf)
 		if err != nil {
 			log.Error("Could not create syncer", err)
 			continue
@@ -118,6 +123,57 @@ func (s graphSyncer) syncGraph() error {
 	return nil
 }
 
+func (s graphSyncer) deleteFile(file graph.File) error {
+	var fileId string
+	var err error
+	if s.config.Encryption.Enabled {
+		log.Info("Encrypting filename")
+		fileId, err = crypt.EncryptString(file.Id, s.config.Encryption.Key)
+		if err != nil {
+			return err
+		}
+	} else {
+		fileId = file.Id
+	}
+
+	request := remote.NewRequest(s.config, s.name, s.transaction, "D")
+	return request.SendDelete(fileId, file.LastChange)
+}
+
+func (s graphSyncer) uploadFile(file graph.File, operation string) error {
+	request := remote.NewRequest(s.config, s.name, s.transaction, operation)
+
+	f, err := os.Open(file.Path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	contents, err := io.ReadAll(f)
+	if err != nil {
+		return err
+	}
+
+	var body []byte
+	var fileId string
+	if s.config.Encryption.Enabled {
+		log.Info("Encrypting content")
+		body, err = crypt.Encrypt(contents, s.config.Encryption.Key)
+		if err != nil {
+			return err
+		}
+		fileId, err = crypt.EncryptString(file.Id, s.config.Encryption.Key)
+		if err != nil {
+			return err
+		}
+	} else {
+		body = contents
+		fileId = file.Id
+	}
+
+	return request.SendUpload(fileId, file.LastChange, body)
+}
+
 func (s graphSyncer) uploadChanges(changes compare.Result, conflicts []string) error {
 	log.Info("Uploading changes to server")
 	for _, created := range changes.Created {
@@ -126,7 +182,7 @@ func (s graphSyncer) uploadChanges(changes compare.Result, conflicts []string) e
 			continue
 		}
 		log.Info("Uploading created file: %s", created.Id)
-		err := s.remote.UploadFile(s.name, created, s.transaction, "C")
+		err := s.uploadFile(created, "C")
 		if err != nil {
 			log.Error("Failed to upload", err)
 		}
@@ -138,7 +194,7 @@ func (s graphSyncer) uploadChanges(changes compare.Result, conflicts []string) e
 			continue
 		}
 		log.Info("Uploading changed file: %s", changed.Id)
-		err := s.remote.UploadFile(s.name, changed, s.transaction, "M")
+		err := s.uploadFile(changed, "M")
 		if err != nil {
 			log.Error("Failed to upload change", err)
 		}
@@ -150,13 +206,50 @@ func (s graphSyncer) uploadChanges(changes compare.Result, conflicts []string) e
 			continue
 		}
 		log.Info("Deleting file: %s", deleted.Id)
-		err := s.remote.DeleteFile(s.name, deleted, s.transaction)
+		err := s.deleteFile(deleted)
 		if err != nil {
 			log.Error("Failed to delete", err)
 		}
 	}
 
 	return nil
+}
+
+func (s graphSyncer) downloadFile(fileId string) error {
+	content, err := s.remote.GetContent(s.name, fileId)
+	if err != nil {
+		log.Error("Failed to download content", err)
+		return err
+	}
+	if s.config.Encryption.Enabled {
+		content, err = crypt.Decrypt(content, s.config.Encryption.Key)
+		if err != nil {
+			return err
+		}
+
+		fileId, err = crypt.DecryptString(fileId, s.config.Encryption.Key)
+		if err != nil {
+			return err
+		}
+	}
+	err = graph.StoreFile(s.basePath, fileId, content)
+	if err != nil {
+		log.Error("Failed to store file in local graph", err)
+		return err
+	}
+
+	return err
+}
+
+func (s graphSyncer) removeFile(fileId string) error {
+	var err error
+	if s.config.Encryption.Enabled {
+		fileId, err = crypt.DecryptString(fileId, s.config.Encryption.Key)
+		if err != nil {
+			return err
+		}
+	}
+	return graph.RemoveFile(s.basePath, fileId)
 }
 
 func (s graphSyncer) downloadChanges(changes []remote.ChangeLogEntry, conflicts []string) error {
@@ -168,6 +261,7 @@ func (s graphSyncer) downloadChanges(changes []remote.ChangeLogEntry, conflicts 
 		}
 		log.Info("Found change with transaction %s for file %s", change.Transaction, change.FileId)
 		if change.Operation == "C" || change.Operation == "M" {
+			err := s.downloadFile(change.FileId)
 			content, err := s.remote.GetContent(change.GraphName, change.FileId)
 			if err != nil {
 				log.Error("Failed to download content", err)
@@ -179,7 +273,7 @@ func (s graphSyncer) downloadChanges(changes []remote.ChangeLogEntry, conflicts 
 				continue
 			}
 		} else if change.Operation == "D" {
-			err := graph.RemoveFile(s.basePath, change.FileId)
+			err := s.removeFile(change.FileId)
 			if err != nil {
 				log.Error("Failed to remove file in local graph", err)
 				continue
