@@ -11,44 +11,75 @@ import (
 	"time"
 )
 
-var r *remote.Remote
+type graphSyncer struct {
+	remote      *remote.Remote
+	basePath    string
+	transaction string
+	name        string
+}
+
+func newSyncer(graphPath string, r *remote.Remote) (graphSyncer, error) {
+	name, err := graph.GetNameByPath(graphPath)
+	if err != nil {
+		return graphSyncer{}, err
+	}
+	transaction, _ := uuid.NewUUID()
+	log.Info("Graph name: %s", name)
+	return graphSyncer{
+		transaction: transaction.String(),
+		basePath:    graphPath,
+		remote:      r,
+		name:        name,
+	}, nil
+}
 
 func Start(conf config.Config) {
-	r = remote.New(conf)
 	if conf.Sync.Once {
 		log.Info("Syncing graphs once")
-		syncGraphs(conf.Sync.Graphs)
+		syncGraphs(conf)
 		return
 	}
 
 	ticker := time.Tick(time.Duration(conf.Sync.Interval) * time.Second)
 	for range ticker {
 		log.Info("Starting sync of graphs")
-		syncGraphs(conf.Sync.Graphs)
+		syncGraphs(conf)
 	}
 }
 
-func syncGraph(graphPath string) error {
-	name, err := graph.GetNameByPath(graphPath)
-	if err != nil {
-		return err
+func syncGraphs(conf config.Config) {
+	r := remote.New(conf)
+	for _, graphPath := range conf.Sync.Graphs {
+		syncer, err := newSyncer(graphPath, r)
+		if err != nil {
+			log.Error("Could not create syncer", err)
+			continue
+		}
+		err = syncer.syncGraph()
+		if err != nil {
+			log.Error("Failed to sync", err)
+		}
 	}
-	transaction, _ := uuid.NewUUID()
-	log.Info("Graph name: %s", name)
+	err := saveLastSyncTime(time.Now())
+	if err != nil {
+		log.Error("Failed to save last sync time", err)
+	}
+}
 
+func (s graphSyncer) syncGraph() error {
 	lastSync, err := getLastSyncTime()
 	if err != nil {
 		return err
 	}
 	log.Info("Last sync was %v", lastSync)
 
-	remoteChanges, err := r.GetChanges(name, lastSync)
+	remoteChanges, err := s.remote.GetChanges(s.name, lastSync)
 	if err != nil {
 		return err
 	}
 	log.Info("Found %d remote changes", len(remoteChanges))
 
-	readGraph, err := graph.ReadGraph(graphPath)
+	readGraph, err := graph.ReadGraph(s.basePath)
 	if err != nil {
 		return err
 	}
@@ -62,11 +93,11 @@ func syncGraph(graphPath string) error {
 	conflicts := checkForConflicts(remoteChanges, localChanges)
 	log.Info("Found %d conflicts", len(conflicts))
 
-	err = downloadChanges(graphPath, remoteChanges, conflicts)
+	err = s.downloadChanges(remoteChanges, conflicts)
 	if err != nil {
 		return err
 	}
-	err = uploadChanges(name, localChanges, transaction, conflicts)
+	err = s.uploadChanges(localChanges, conflicts)
 	if err != nil {
 		return err
 	}
@@ -78,7 +109,7 @@ func syncGraph(graphPath string) error {
 
 	// need to reread the graph after updating
 	// TODO: could do the update in memory to save the second read
-	readGraph, _ = graph.ReadGraph(graphPath)
+	readGraph, _ = graph.ReadGraph(s.name)
 	err = graph.SaveGraphToFile(readGraph, savePath)
 	if err != nil {
 		return err
@@ -87,7 +118,7 @@ func syncGraph(graphPath string) error {
 	return nil
 }
 
-func uploadChanges(graphName string, changes compare.Result, transaction uuid.UUID, conflicts []string) error {
+func (s graphSyncer) uploadChanges(changes compare.Result, conflicts []string) error {
 	log.Info("Uploading changes to server")
 	for _, created := range changes.Created {
 		if slices.Contains(conflicts, created.Id) {
@@ -95,7 +126,7 @@ func uploadChanges(graphName string, changes compare.Result, transaction uuid.UU
 			continue
 		}
 		log.Info("Uploading created file: %s", created.Id)
-		err := r.UploadFile(graphName, created, transaction.String(), "C")
+		err := s.remote.UploadFile(s.name, created, s.transaction, "C")
 		if err != nil {
 			log.Error("Failed to upload", err)
 		}
@@ -107,7 +138,7 @@ func uploadChanges(graphName string, changes compare.Result, transaction uuid.UU
 			continue
 		}
 		log.Info("Uploading changed file: %s", changed.Id)
-		err := r.UploadFile(graphName, changed, transaction.String(), "M")
+		err := s.remote.UploadFile(s.name, changed, s.transaction, "M")
 		if err != nil {
 			log.Error("Failed to upload change", err)
 		}
@@ -119,7 +150,7 @@ func uploadChanges(graphName string, changes compare.Result, transaction uuid.UU
 			continue
 		}
 		log.Info("Deleting file: %s", deleted.Id)
-		err := r.DeleteFile(graphName, deleted, transaction.String())
+		err := s.remote.DeleteFile(s.name, deleted, s.transaction)
 		if err != nil {
 			log.Error("Failed to delete", err)
 		}
@@ -128,7 +159,7 @@ func uploadChanges(graphName string, changes compare.Result, transaction uuid.UU
 	return nil
 }
 
-func downloadChanges(graphPath string, changes []remote.ChangeLogEntry, conflicts []string) error {
+func (s graphSyncer) downloadChanges(changes []remote.ChangeLogEntry, conflicts []string) error {
 	log.Info("Downloading changes from server")
 	for _, change := range changes {
 		if slices.Contains(conflicts, change.FileId) {
@@ -137,18 +168,18 @@ func downloadChanges(graphPath string, changes []remote.ChangeLogEntry, conflict
 		}
 		log.Info("Found change with transaction %s for file %s", change.Transaction, change.FileId)
 		if change.Operation == "C" || change.Operation == "M" {
-			content, err := r.GetContent(change.GraphName, change.FileId)
+			content, err := s.remote.GetContent(change.GraphName, change.FileId)
 			if err != nil {
 				log.Error("Failed to download content", err)
 				continue
 			}
-			err = graph.StoreFile(graphPath, change.FileId, content)
+			err = graph.StoreFile(s.basePath, change.FileId, content)
 			if err != nil {
 				log.Error("Failed to store file in local graph", err)
 				continue
 			}
 		} else if change.Operation == "D" {
-			err := graph.RemoveFile(graphPath, change.FileId)
+			err := graph.RemoveFile(s.basePath, change.FileId)
 			if err != nil {
 				log.Error("Failed to remove file in local graph", err)
 				continue
@@ -171,17 +202,4 @@ func getLocalChanges(g graph.Graph) (compare.Result, error) {
 
 	compResult := compare.Graphs(savedGraph, g)
 	return compResult, nil
-}
-
-func syncGraphs(graphs []string) {
-	for _, graphPath := range graphs {
-		err := syncGraph(graphPath)
-		if err != nil {
-			log.Error("Failed to sync", err)
-		}
-	}
-	err := saveLastSyncTime(time.Now())
-	if err != nil {
-		log.Error("Failed to save last sync time", err)
-	}
 }
