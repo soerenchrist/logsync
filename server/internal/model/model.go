@@ -23,6 +23,13 @@ type ChangeLogEntry struct {
 	Operation   OperationType `json:"operation"`
 }
 
+// FileMapping encrypted filename may be longer than 255 chars
+// therefore we need a mapping from id to a generated filename
+type FileMapping struct {
+	FileId   string `gorm:"primaryKey"`
+	FileName string
+}
+
 func CreateDb(path string) (*gorm.DB, error) {
 	log.Debug("Connecting to database", "path", path)
 	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{})
@@ -32,7 +39,7 @@ func CreateDb(path string) (*gorm.DB, error) {
 	}
 
 	log.Debug("Migrating database")
-	err = db.AutoMigrate(&ChangeLogEntry{})
+	err = db.AutoMigrate(&ChangeLogEntry{}, &FileMapping{})
 	if err != nil {
 		log.Error("Could migrate database", "error", err)
 		return nil, err
