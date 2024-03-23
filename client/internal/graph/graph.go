@@ -55,8 +55,8 @@ func ReadGraph(baseDir string) (Graph, error) {
 }
 
 func (g *Graph) AddOrUpdateFile(file File) {
-	index := slices.IndexFunc(g.Files, func(file File) bool {
-		return file.Id == file.Id
+	index := slices.IndexFunc(g.Files, func(f File) bool {
+		return f.Id == file.Id
 	})
 	if index < 0 {
 		g.Files = append(g.Files, file)
