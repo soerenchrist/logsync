@@ -7,23 +7,23 @@ import (
 	"strings"
 )
 
-func StoreFile(graphPath, fileId string, content []byte) error {
+func StoreFile(graphPath, fileId string, content []byte) (string, error) {
 	p := getPathByFileId(fileId)
 	p = path.Join(graphPath, p)
 
 	err := ensureDirExists(p)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	file, err := os.Create(p)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer file.Close()
 
 	_, err = file.Write(content)
-	return err
+	return p, err
 }
 
 func ensureDirExists(p string) error {

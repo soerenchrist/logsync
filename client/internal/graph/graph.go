@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -14,8 +15,17 @@ var Separator = "___"
 var skipFolders = []string{"bak", ".recycle"}
 
 type Graph struct {
-	Name  string `json:"name"`
-	Files []File `json:"files"`
+	Name     string    `json:"name"`
+	LastSync time.Time `json:"lastSync"`
+	Files    []File    `json:"files"`
+}
+
+func New(name string) Graph {
+	return Graph{
+		Name:     name,
+		LastSync: time.Time{},
+		Files:    make([]File, 0),
+	}
 }
 
 type File struct {
@@ -44,12 +54,36 @@ func ReadGraph(baseDir string) (Graph, error) {
 	}, nil
 }
 
-func getGraphName(baseDir string) (string, error) {
-	stat, err := os.Stat(baseDir)
-	if err != nil {
-		return "", err
+func (g *Graph) AddOrUpdateFile(file File) {
+	index := slices.IndexFunc(g.Files, func(file File) bool {
+		return file.Id == file.Id
+	})
+	if index < 0 {
+		g.Files = append(g.Files, file)
+	} else {
+		g.Files[index] = file
 	}
-	return stat.Name(), nil
+}
+
+func (g *Graph) RemoveFile(fileId string) {
+	slices.DeleteFunc(g.Files, func(file File) bool {
+		return file.Id == fileId
+	})
+}
+
+func getGraphName(baseDir string) (string, error) {
+	p := sanitize.Path(baseDir)
+	parts := strings.Split(p, "/")
+	if len(parts) < 1 {
+		return "", errors.New("path is empty")
+	}
+
+	lastPart := parts[len(parts)-1]
+	if strings.Contains(lastPart, ".") {
+		parts := strings.Split(lastPart, ".")
+		return parts[0], nil
+	}
+	return parts[len(parts)-1], nil
 }
 
 func traverseGraph(baseDir string, name string, files *[]File, errors *[]error) {

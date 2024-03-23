@@ -1,9 +1,11 @@
 encryption:
-  enabled: false
+  enabled: true
+  key: "this is a super secure key"
 sync:
   graphs:
-    - D:\10_Notizen\Test
-  interval: 10
+    - C:\Users\schrist\OneDrive\Logseq\Personal
+  interval: -1
   once: true
 server:
-  host: http://localhost:3000
+  host: http://192.168.178.64:3000
+  # host: http://localhost:3000

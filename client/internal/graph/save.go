@@ -45,8 +45,13 @@ func LoadGraph(inputFile io.Reader) (Graph, error) {
 
 func LoadGraphFromFile(filePath string) (Graph, error) {
 	file, err := os.Open(filePath)
+
 	if errors.Is(err, os.ErrNotExist) {
-		return Graph{}, nil
+		name, err := getGraphName(filePath)
+		if err != nil {
+			return Graph{}, err
+		}
+		return New(name), nil
 	}
 
 	return LoadGraph(file)
