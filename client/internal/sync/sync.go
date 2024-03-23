@@ -16,7 +16,6 @@ import (
 
 type graphSyncer struct {
 	config      config.Config
-	remote      *remote.Remote
 	savedGraph  *graph.Graph
 	basePath    string
 	transaction string
@@ -24,7 +23,6 @@ type graphSyncer struct {
 }
 
 func newSyncer(graphPath string, conf config.Config) (graphSyncer, error) {
-	r := remote.New(conf)
 	name, err := graph.GetNameByPath(graphPath)
 	if err != nil {
 		return graphSyncer{}, err
@@ -45,7 +43,6 @@ func newSyncer(graphPath string, conf config.Config) (graphSyncer, error) {
 		transaction: transaction.String(),
 		basePath:    graphPath,
 		savedGraph:  &savedGraph,
-		remote:      r,
 		name:        name,
 	}, nil
 }
@@ -81,7 +78,8 @@ func syncGraphs(conf config.Config) {
 func (s graphSyncer) syncGraph() error {
 	log.Info("Last sync was %v", s.savedGraph.LastSync)
 
-	remoteChanges, err := s.remote.GetChanges(s.name, s.savedGraph.LastSync)
+	changesRequest := remote.NewChangesRequest(s.config)
+	remoteChanges, err := changesRequest.Send(s.name, s.savedGraph.LastSync)
 	if err != nil {
 		return err
 	}
@@ -137,12 +135,12 @@ func (s graphSyncer) deleteFile(file graph.File) error {
 		fileId = file.Id
 	}
 
-	request := remote.NewRequest(s.config, s.name, s.transaction, "D")
-	return request.SendDelete(fileId, file.LastChange)
+	request := remote.NewDeleteRequest(s.config, s.name, s.transaction)
+	return request.Send(fileId, file.LastChange)
 }
 
 func (s graphSyncer) uploadFile(file graph.File, operation string) error {
-	request := remote.NewRequest(s.config, s.name, s.transaction, operation)
+	request := remote.NewUploadRequest(s.config, s.name, s.transaction, operation)
 
 	f, err := os.Open(file.Path)
 	if err != nil {
@@ -172,7 +170,7 @@ func (s graphSyncer) uploadFile(file graph.File, operation string) error {
 		fileId = file.Id
 	}
 
-	return request.SendUpload(fileId, file.LastChange, body)
+	return request.Send(fileId, file.LastChange, body)
 }
 
 func (s graphSyncer) uploadChanges(changes compare.Result, conflicts []string) error {
@@ -221,7 +219,8 @@ func (s graphSyncer) uploadChanges(changes compare.Result, conflicts []string) e
 }
 
 func (s graphSyncer) downloadFile(fileId string) error {
-	content, err := s.remote.GetContent(s.name, fileId)
+	request := remote.NewContentRequest(s.config)
+	content, err := request.Send(s.name, fileId)
 	if err != nil {
 		log.Error("Failed to download content", err)
 		return err

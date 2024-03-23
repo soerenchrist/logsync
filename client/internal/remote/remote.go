@@ -12,7 +12,11 @@ import (
 	"time"
 )
 
-type Remote struct {
+type ChangesRequest struct {
+	conf config.Config
+}
+
+type ContentRequest struct {
 	conf config.Config
 }
 
@@ -24,11 +28,15 @@ type ChangeLogEntry struct {
 	Operation   string    `json:"operation"`
 }
 
-func New(conf config.Config) *Remote {
-	return &Remote{conf: conf}
+func NewChangesRequest(conf config.Config) ChangesRequest {
+	return ChangesRequest{conf: conf}
 }
 
-func (r *Remote) GetChanges(graphName string, since time.Time) ([]ChangeLogEntry, error) {
+func NewContentRequest(conf config.Config) ContentRequest {
+	return ContentRequest{conf: conf}
+}
+
+func (r ChangesRequest) Send(graphName string, since time.Time) ([]ChangeLogEntry, error) {
 	url := fmt.Sprintf("%s/%s/changes?since=%d", r.conf.Server.Host, graphName, since.UnixMilli())
 	resp, err := http.DefaultClient.Get(url)
 	if err != nil {
@@ -53,7 +61,7 @@ func (r *Remote) GetChanges(graphName string, since time.Time) ([]ChangeLogEntry
 	return entries, nil
 }
 
-func (r *Remote) GetContent(graphName string, fileId string) ([]byte, error) {
+func (r ContentRequest) Send(graphName string, fileId string) ([]byte, error) {
 	url := fmt.Sprintf("%s/%s/content/%s", r.conf.Server.Host, graphName, fileId)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -71,23 +79,43 @@ func (r *Remote) GetContent(graphName string, fileId string) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
-type Request struct {
+type request struct {
 	config      config.Config
 	graphName   string
 	transaction string
 	operation   string
 }
 
-func NewRequest(conf config.Config, graphName, transaction, operation string) Request {
-	return Request{
-		config:      conf,
-		graphName:   graphName,
-		transaction: transaction,
-		operation:   operation,
+type UploadRequest struct {
+	request
+}
+
+type DeleteRequest struct {
+	request
+}
+
+func NewUploadRequest(conf config.Config, graphName, transaction, operation string) UploadRequest {
+	return UploadRequest{
+		request: request{
+			config:      conf,
+			graphName:   graphName,
+			transaction: transaction,
+			operation:   operation,
+		},
 	}
 }
 
-func (r Request) SendDelete(filename string, modified time.Time) error {
+func NewDeleteRequest(conf config.Config, graphName, transaction string) DeleteRequest {
+	return DeleteRequest{request: request{
+		config:      conf,
+		graphName:   graphName,
+		transaction: transaction,
+		operation:   "D",
+	},
+	}
+}
+
+func (r DeleteRequest) Send(filename string, modified time.Time) error {
 	url := fmt.Sprintf("%s/%s/delete/%s?ta_id=%s&modified_date=%d", r.config.Server.Host, r.graphName, filename, r.transaction, modified.UnixMilli())
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
@@ -105,7 +133,11 @@ func (r Request) SendDelete(filename string, modified time.Time) error {
 	return nil
 }
 
-func (r Request) SendUpload(filename string, modified time.Time, body []byte) error {
+func (u UploadRequest) Send(filename string, modified time.Time, body []byte) error {
+	return u.upload(filename, modified, body)
+}
+
+func (r request) upload(filename string, modified time.Time, body []byte) error {
 	url := fmt.Sprintf("%s/%s/upload", r.config.Server.Host, r.graphName)
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
