@@ -12,6 +12,8 @@ import (
 	"time"
 )
 
+const transactionHeader = "X-Transaction-Id"
+
 type ChangesRequest struct {
 	config config.Config
 }
@@ -72,6 +74,7 @@ func (r ContentRequest) Send(graphName string, fileId string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	addApiTokenIfExists(req, r.config)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -122,11 +125,13 @@ func NewDeleteRequest(conf config.Config, graphName, transaction string) DeleteR
 }
 
 func (r DeleteRequest) Send(filename string, modified time.Time) error {
-	url := fmt.Sprintf("%s/%s/delete/%s?ta_id=%s&modified_date=%d", r.config.Server.Host, r.graphName, filename, r.transaction, modified.UnixMilli())
+	url := fmt.Sprintf("%s/%s/delete/%s?&modified_date=%d", r.config.Server.Host, r.graphName, filename, modified.UnixMilli())
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
 		return err
 	}
+	req.Header.Add(transactionHeader, r.transaction)
+
 	addApiTokenIfExists(req, r.config)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -187,6 +192,7 @@ func (r request) upload(filename string, modified time.Time, body []byte) error 
 	if err != nil {
 		return err
 	}
+	req.Header.Add(transactionHeader, r.transaction)
 	addApiTokenIfExists(req, r.config)
 	resp, err := http.DefaultClient.Do(req)
 

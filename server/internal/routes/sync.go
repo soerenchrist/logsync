@@ -92,9 +92,9 @@ func (c *Controller) deleteFile(w http.ResponseWriter, r *http.Request) {
 	graphName := chi.URLParam(r, "graphID")
 	fileName := chi.URLParam(r, "fileID")
 
-	transaction := r.URL.Query().Get("ta_id")
+	transaction := r.Context().Value("transaction").(string)
 	if transaction == "" {
-		abort400(w, r, "ta_id query param is missing")
+		abort400(w, r, "Expected X-Transaction-Id header")
 		return
 	}
 
@@ -164,9 +164,9 @@ func (c *Controller) uploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	transaction := r.FormValue("ta-id")
+	transaction := r.Context().Value("transaction").(string)
 	if transaction == "" {
-		abort400(w, r, "Expected ta-id parameter in form")
+		abort400(w, r, "Expected X-Transaction-Id header")
 		return
 	}
 
