@@ -21,7 +21,8 @@ type EncryptionConfig struct {
 }
 
 type ServerConfig struct {
-	Host string
+	Host     string
+	ApiToken string
 }
 
 func Read() (Config, error) {
@@ -61,7 +62,8 @@ func getConfig() Config {
 			Once:     viper.GetBool("sync.once"),
 		},
 		Server: ServerConfig{
-			Host: viper.GetString("server.host"),
+			Host:     viper.GetString("server.host"),
+			ApiToken: viper.GetString("server.apitoken"),
 		},
 	}
 }

@@ -13,11 +13,11 @@ import (
 )
 
 type ChangesRequest struct {
-	conf config.Config
+	config config.Config
 }
 
 type ContentRequest struct {
-	conf config.Config
+	config config.Config
 }
 
 type ChangeLogEntry struct {
@@ -29,15 +29,20 @@ type ChangeLogEntry struct {
 }
 
 func NewChangesRequest(conf config.Config) ChangesRequest {
-	return ChangesRequest{conf: conf}
+	return ChangesRequest{config: conf}
 }
 
 func NewContentRequest(conf config.Config) ContentRequest {
-	return ContentRequest{conf: conf}
+	return ContentRequest{config: conf}
 }
 
 func (r ChangesRequest) Send(graphName string, since time.Time) ([]ChangeLogEntry, error) {
-	url := fmt.Sprintf("%s/%s/changes?since=%d", r.conf.Server.Host, graphName, since.UnixMilli())
+	url := fmt.Sprintf("%s/%s/changes?since=%d", r.config.Server.Host, graphName, since.UnixMilli())
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	addApiTokenIfExists(req, r.config)
 	resp, err := http.DefaultClient.Get(url)
 	if err != nil {
 		return nil, err
@@ -62,11 +67,12 @@ func (r ChangesRequest) Send(graphName string, since time.Time) ([]ChangeLogEntr
 }
 
 func (r ContentRequest) Send(graphName string, fileId string) ([]byte, error) {
-	url := fmt.Sprintf("%s/%s/content/%s", r.conf.Server.Host, graphName, fileId)
+	url := fmt.Sprintf("%s/%s/content/%s", r.config.Server.Host, graphName, fileId)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
+	addApiTokenIfExists(req, r.config)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -121,6 +127,7 @@ func (r DeleteRequest) Send(filename string, modified time.Time) error {
 	if err != nil {
 		return err
 	}
+	addApiTokenIfExists(req, r.config)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
@@ -172,15 +179,16 @@ func (r request) upload(filename string, modified time.Time, body []byte) error 
 	}
 
 	req, err := http.NewRequest("POST", url, &buf)
-	req.Header.Set("Content-Type", mw.FormDataContentType())
 	if err != nil {
 		return err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
 	if err != nil {
 		return err
 	}
+	addApiTokenIfExists(req, r.config)
+	resp, err := http.DefaultClient.Do(req)
 
 	if resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -201,4 +209,12 @@ func addFormField(mw *multipart.Writer, fieldName, content string) error {
 		return err
 	}
 	return nil
+}
+
+func addApiTokenIfExists(r *http.Request, conf config.Config) {
+	if conf.Server.ApiToken == "" {
+		return
+	}
+
+	r.Header.Set("X-Api-Token", conf.Server.ApiToken)
 }
