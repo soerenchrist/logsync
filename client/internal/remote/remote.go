@@ -21,11 +21,11 @@ type ContentRequest struct {
 }
 
 type ChangeLogEntry struct {
-	GraphName   string    `json:"graph_name"`
-	FileId      string    `json:"file_id"`
-	Timestamp   time.Time `json:"timestamp"`
-	Transaction string    `json:"transaction"`
-	Operation   string    `json:"operation"`
+	GraphName     string    `json:"graph_name"`
+	FileId        string    `json:"file_id"`
+	Timestamp     time.Time `json:"timestamp"`
+	TransactionId string    `json:"transaction_id"`
+	Operation     string    `json:"operation"`
 }
 
 func NewChangesRequest(conf config.Config) ChangesRequest {

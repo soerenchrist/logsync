@@ -16,11 +16,11 @@ const (
 )
 
 type ChangeLogEntry struct {
-	GraphName   string        `gorm:"primaryKey" json:"graph_name"`
-	FileId      string        `gorm:"primaryKey" json:"file_id"`
-	Timestamp   time.Time     `gorm:"primaryKey" json:"timestamp"`
-	Transaction string        `json:"transaction"`
-	Operation   OperationType `json:"operation"`
+	GraphName     string        `gorm:"primaryKey" json:"graph_name"`
+	FileId        string        `gorm:"primaryKey" json:"file_id"`
+	Timestamp     time.Time     `gorm:"primaryKey" json:"timestamp"`
+	TransactionId string        `json:"transaction_id"`
+	Operation     OperationType `json:"operation"`
 }
 
 // FileMapping encrypted filename may be longer than 255 chars

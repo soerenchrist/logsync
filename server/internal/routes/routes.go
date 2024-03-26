@@ -26,4 +26,6 @@ func (c *Controller) MapEndpoints() {
 	c.router.Post("/{graphID}/upload", c.uploadFile)
 	c.router.Delete("/{graphID}/delete/{fileID}", c.deleteFile)
 	c.router.Get("/{graphID}/content/{fileID}", c.content)
+
+	c.router.Get("/transactions", c.getTransactions)
 }

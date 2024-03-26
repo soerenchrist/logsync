@@ -146,11 +146,11 @@ func (c *Controller) deleteFile(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 	entry := model.ChangeLogEntry{
-		GraphName:   graphName,
-		FileId:      fileName,
-		Operation:   model.Deleted,
-		Timestamp:   timestamp,
-		Transaction: transaction,
+		GraphName:     graphName,
+		FileId:        fileName,
+		Operation:     model.Deleted,
+		Timestamp:     timestamp,
+		TransactionId: transaction,
 	}
 	tx := c.db.Create(entry)
 	if tx.Error != nil {
@@ -231,11 +231,11 @@ func (c *Controller) uploadFile(writer http.ResponseWriter, request *http.Reques
 	}
 
 	entry := model.ChangeLogEntry{
-		GraphName:   graphName,
-		FileId:      header.Filename,
-		Operation:   opType,
-		Timestamp:   timestamp,
-		Transaction: transaction,
+		GraphName:     graphName,
+		FileId:        header.Filename,
+		Operation:     opType,
+		Timestamp:     timestamp,
+		TransactionId: transaction,
 	}
 	tx := c.db.Create(entry)
 	if tx.Error != nil {

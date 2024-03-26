@@ -273,7 +273,7 @@ func (s graphSyncer) downloadChanges(changes []remote.ChangeLogEntry, conflicts 
 			log.Info("Skipping download of file %s", change.FileId)
 			continue
 		}
-		log.Info("Found change with transaction %s for file %s", change.Transaction, change.FileId)
+		log.Info("Found change with transaction %s for file %s", change.TransactionId, change.FileId)
 		if change.Operation == "C" || change.Operation == "M" {
 			err := s.downloadFile(change.FileId)
 			if err != nil {
