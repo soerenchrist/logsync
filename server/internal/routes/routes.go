@@ -27,5 +27,8 @@ func (c *Controller) MapEndpoints() {
 	c.router.Delete("/{graphID}/delete/{fileID}", c.deleteFile)
 	c.router.Get("/{graphID}/content/{fileID}", c.content)
 
-	c.router.Get("/transactions", c.getTransactions)
+	c.router.Route("/transactions", func(r chi.Router) {
+		r.Get("/", c.getTransactions)
+		r.Get("/{transactionID}/changes", c.getChangesInTransaction)
+	})
 }
