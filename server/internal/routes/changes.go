@@ -10,15 +10,14 @@ import (
 	"time"
 )
 
-func (c *Controller) getChanges(writer http.ResponseWriter, request *http.Request) {
-	logger := request.Context().Value("logger").(*slog.Logger)
-	graphId := chi.URLParam(request, "graphID")
+func (c *Controller) getChanges(w http.ResponseWriter, r *http.Request) {
+	logger := r.Context().Value("logger").(*slog.Logger)
+	graphId := chi.URLParam(r, "graphID")
 
-	since := request.URL.Query().Get("since")
+	since := r.URL.Query().Get("since")
 	sinceTime, err := parseTime(since)
 	if err != nil {
-		logger.Error("Could not parse time", "error", err)
-		http.Error(writer, "Could not parse time", http.StatusBadRequest)
+		abort400(w, r, "Could not parse time")
 		return
 	}
 	logger.Debug("Getting changes for graph", "graph", graphId, "since", sinceTime)
@@ -26,12 +25,11 @@ func (c *Controller) getChanges(writer http.ResponseWriter, request *http.Reques
 	var changes []model.ChangeLogEntry
 	tx := c.db.Where("graph_name = ? AND timestamp > ?", graphId, sinceTime).Find(&changes)
 	if tx.Error != nil {
-		logger.Error("Could not query database", "error", err)
-		http.Error(writer, "Error in sql query", http.StatusInternalServerError)
+		abort500(w, r, err)
 		return
 	}
 
-	render.JSON(writer, request, changes)
+	render.JSON(w, r, changes)
 }
 
 func parseTime(since string) (time.Time, error) {

@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/soerenchrist/logsync/server/internal/model"
 	"gorm.io/gorm"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -17,31 +16,27 @@ import (
 	"time"
 )
 
-func (c *Controller) content(writer http.ResponseWriter, request *http.Request) {
-	logger := request.Context().Value("logger").(*slog.Logger)
-	graphName := chi.URLParam(request, "graphID")
-	fileId := chi.URLParam(request, "fileID")
+func (c *Controller) content(w http.ResponseWriter, r *http.Request) {
+	graphName := chi.URLParam(r, "graphID")
+	fileId := chi.URLParam(r, "fileID")
 
 	mapping, err := c.getMapping(fileId)
 	if err != nil {
-		logger.Error("Error querying database", "file", fileId, "error", err)
-		http.Error(writer, "Could not query database", http.StatusInternalServerError)
+		abort500(w, r, err)
 		return
 	}
 
 	data, err := c.files.Content(graphName, mapping.FileName)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			logger.Error("File not found", "file", fileId)
-			http.Error(writer, "Not found", http.StatusNotFound)
+			abort404(w, r)
 		} else {
-			logger.Error("Could not read file", "file", fileId, "error", err)
-			http.Error(writer, "Could not read file", http.StatusInternalServerError)
+			abort500(w, r, err)
 		}
 		return
 	}
 
-	render.Data(writer, request, data)
+	render.Data(w, r, data)
 }
 
 func (c *Controller) getMapping(fileId string) (model.FileMapping, error) {
@@ -93,22 +88,19 @@ func (c *Controller) removeMapping(fileId string) error {
 	return tx.Error
 }
 
-func (c *Controller) deleteFile(writer http.ResponseWriter, request *http.Request) {
-	logger := request.Context().Value("logger").(*slog.Logger)
-	graphName := chi.URLParam(request, "graphID")
-	fileName := chi.URLParam(request, "fileID")
+func (c *Controller) deleteFile(w http.ResponseWriter, r *http.Request) {
+	graphName := chi.URLParam(r, "graphID")
+	fileName := chi.URLParam(r, "fileID")
 
-	transaction := request.URL.Query().Get("ta_id")
+	transaction := r.URL.Query().Get("ta_id")
 	if transaction == "" {
-		logger.Debug("Transaction id is missing in query")
-		http.Error(writer, "ta_id query is missing", http.StatusBadRequest)
+		abort400(w, r, "ta_id query param is missing")
 		return
 	}
 
-	timestamp, err := readModifiedDateFromQuery(request)
+	timestamp, err := readModifiedDateFromQuery(r)
 	if err != nil {
-		logger.Debug("Modified date is missing in query")
-		http.Error(writer, "Missing modified_date query param", http.StatusBadRequest)
+		abort400(w, r, "modified_date query param is missing")
 		return
 	}
 
@@ -116,33 +108,29 @@ func (c *Controller) deleteFile(writer http.ResponseWriter, request *http.Reques
 	var existing []model.ChangeLogEntry
 	c.db.Where("timestamp = ? AND file_id = ? and graph_name = ?", timestamp, fileName, graphName).Find(&existing)
 	if len(existing) > 0 {
-		writer.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
 	mapping, err := c.getOrCreateMapping(fileName)
 	if err != nil {
-		logger.Error("Failed get get mapping", "error", err)
-		http.Error(writer, "Failed to get mapping", http.StatusInternalServerError)
+		abort500(w, r, err)
 		return
 	}
 
 	err = c.files.Remove(graphName, mapping.FileName)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			logger.Debug("File was not found", "file", fileName)
-			http.Error(writer, "Not found", http.StatusNotFound)
+			abort404(w, r)
 		} else {
-			logger.Debug("Could not delete file", "file", fileName)
-			http.Error(writer, "Could not delete file", http.StatusInternalServerError)
+			abort500(w, r, err)
 		}
 		return
 	}
 
 	err = c.removeMapping(fileName)
 	if err != nil {
-		logger.Error("Failed to remove mapping", "error", err)
-		http.Error(writer, "Could not remove mapping", http.StatusInternalServerError)
+		abort500(w, r, err)
 		return
 	}
 	entry := model.ChangeLogEntry{
@@ -154,56 +142,48 @@ func (c *Controller) deleteFile(writer http.ResponseWriter, request *http.Reques
 	}
 	tx := c.db.Create(entry)
 	if tx.Error != nil {
-		logger.Error("Could not create database entry", "entry", entry)
-		http.Error(writer, "Failed to save entry", http.StatusInternalServerError)
+		abort500(w, r, err)
 		return
 	}
 
-	writer.WriteHeader(http.StatusNoContent)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func (c *Controller) uploadFile(writer http.ResponseWriter, request *http.Request) {
-	logger := request.Context().Value("logger").(*slog.Logger)
-	graphName := chi.URLParam(request, "graphID")
-	err := request.ParseMultipartForm(10 << 20) // max of 10MB
+func (c *Controller) uploadFile(w http.ResponseWriter, r *http.Request) {
+	graphName := chi.URLParam(r, "graphID")
+	err := r.ParseMultipartForm(10 << 20) // max of 10MB
 	if err != nil {
-		logger.Debug("Expected multipart form")
-		http.Error(writer, "Expected multipart body", http.StatusBadRequest)
+		abort400(w, r, "Expected multipart body")
 		return
 	}
 
-	file, header, err := request.FormFile("file")
+	file, header, err := r.FormFile("file")
 	if err != nil {
-		logger.Debug("Expected file in form")
-		http.Error(writer, "Could not read request", http.StatusInternalServerError)
+		abort400(w, r, "Expected file parameter in form")
 		return
 	}
 	defer file.Close()
 
-	transaction := request.FormValue("ta-id")
+	transaction := r.FormValue("ta-id")
 	if transaction == "" {
-		logger.Debug("Expected transaction id")
-		http.Error(writer, "Missing ta-id", http.StatusBadRequest)
+		abort400(w, r, "Expected ta-id parameter in form")
 		return
 	}
 
-	timestamp, err := readModifiedDateFromForm(request)
+	timestamp, err := readModifiedDateFromForm(r)
 	if err != nil {
-		logger.Debug("Could not parse modified-date", "timestamp", timestamp)
-		http.Error(writer, "Could not parse modified-date", http.StatusBadRequest)
+		abort400(w, r, "Could not parse modified-date")
 		return
 	}
 
-	operation := request.FormValue("operation")
+	operation := r.FormValue("operation")
 	if operation == "" {
-		logger.Debug("Missing operation")
-		http.Error(writer, "Missing operation", http.StatusBadRequest)
+		abort400(w, r, "Missing operation parameter in form")
 		return
 	}
 	opType, err := validateOperation(operation)
 	if err != nil {
-		logger.Debug("Invalid operation type", "op", operation)
-		http.Error(writer, fmt.Sprintf("Invalid operation type, allowed values: %v", uploadAllowedOperationTypes), http.StatusBadRequest)
+		abort400(w, r, fmt.Sprintf("Invalid operation type, allowed values: %v", uploadAllowedOperationTypes))
 		return
 	}
 
@@ -211,22 +191,19 @@ func (c *Controller) uploadFile(writer http.ResponseWriter, request *http.Reques
 	var existing []model.ChangeLogEntry
 	c.db.Where("timestamp = ? AND file_id = ? and graph_name = ?", timestamp, header.Filename, graphName).Find(&existing)
 	if len(existing) > 0 {
-		logger.Info("The Entry does already exist", "time", timestamp, "file", header.Filename, "graph", graphName)
-		writer.WriteHeader(http.StatusCreated)
+		w.WriteHeader(http.StatusCreated)
 		return
 	}
 
 	mapping, err := c.getOrCreateMapping(header.Filename)
 	if err != nil {
-		logger.Error("Could not create mapping", "error", err)
-		http.Error(writer, "Failed to save entry", http.StatusInternalServerError)
+		abort500(w, r, err)
 		return
 	}
 
 	err = c.files.Store(graphName, mapping.FileName, file)
 	if err != nil {
-		logger.Error("Could not save file", "file", header.Filename, "error", err)
-		http.Error(writer, "Could not save file", http.StatusInternalServerError)
+		abort500(w, r, err)
 		return
 	}
 
@@ -239,12 +216,11 @@ func (c *Controller) uploadFile(writer http.ResponseWriter, request *http.Reques
 	}
 	tx := c.db.Create(entry)
 	if tx.Error != nil {
-		logger.Error("Could not create entry", "entry", entry, "error", err)
-		http.Error(writer, "Could not create entry", http.StatusInternalServerError)
+		abort500(w, r, tx.Error)
 		return
 	}
 
-	writer.WriteHeader(http.StatusCreated)
+	w.WriteHeader(http.StatusCreated)
 }
 
 var uploadAllowedOperationTypes = []model.OperationType{
