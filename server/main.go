@@ -24,6 +24,7 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(slogchi.New(logger))
 	r.Use(middleware.Recoverer)
+	r.Use(routes.CreateApiTokenMiddleware(conf))
 	r.Use(routes.Scope)
 
 	db, err := model.CreateDb(conf.Db.Path)

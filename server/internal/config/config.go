@@ -14,8 +14,9 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Host string
-	Port int
+	Host     string
+	Port     int
+	ApiToken string
 }
 
 type FilesConfig struct {
@@ -67,8 +68,9 @@ func defineDefaults() {
 func getConfig() Config {
 	return Config{
 		Server: ServerConfig{
-			Port: viper.GetInt("server.port"),
-			Host: viper.GetString("server.host"),
+			Port:     viper.GetInt("server.port"),
+			Host:     viper.GetString("server.host"),
+			ApiToken: viper.GetString("server.apitoken"),
 		},
 		Files: FilesConfig{
 			Path: viper.GetString("files.path"),
