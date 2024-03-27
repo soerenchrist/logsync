@@ -2,6 +2,7 @@ package config
 
 import (
 	"github.com/spf13/viper"
+	"strings"
 )
 
 type Config struct {
@@ -32,11 +33,15 @@ func Read() (Config, error) {
 	viper.AddConfigPath("..")
 	viper.AddConfigPath("/etc/logsync")
 	viper.AddConfigPath("$HOME/.logsync")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.AutomaticEnv()
 
 	defineDefaults()
 	err := viper.ReadInConfig()
 	if err != nil {
-		return Config{}, err
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			return Config{}, err
+		}
 	}
 
 	return getConfig(), nil

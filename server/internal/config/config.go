@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/spf13/viper"
 	"log/slog"
+	"strings"
 )
 
 type Config struct {
@@ -43,7 +44,7 @@ func Read() (Config, error) {
 	viper.AddConfigPath("/etc/logsync")
 	viper.AddConfigPath("$HOME/.logsync")
 	viper.SetEnvPrefix("LOGSYNC")
-	viper.SetEnvKeyReplacer(NewReplacer())
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
 	defineDefaults()
