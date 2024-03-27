@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"github.com/spf13/viper"
 	"strings"
 )
@@ -34,6 +35,7 @@ func Read() (Config, error) {
 	viper.AddConfigPath("/etc/logsync")
 	viper.AddConfigPath("$HOME/.logsync")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.SetEnvPrefix("LOGSYNC_CLIENT")
 	viper.AutomaticEnv()
 
 	defineDefaults()
@@ -44,7 +46,13 @@ func Read() (Config, error) {
 		}
 	}
 
-	return getConfig(), nil
+	conf := getConfig()
+	err = validateConfig(conf)
+	if err != nil {
+		return Config{}, err
+	}
+
+	return conf, nil
 }
 
 func defineDefaults() {
@@ -71,4 +79,24 @@ func getConfig() Config {
 			ApiToken: viper.GetString("server.apitoken"),
 		},
 	}
+}
+
+func validateConfig(config Config) error {
+	if config.Server.Host == "" {
+		return errors.New("server.host is required")
+	}
+
+	if len(config.Sync.Graphs) == 0 {
+		return errors.New("server.graphs must not be empty")
+	}
+
+	if config.Encryption.Enabled && config.Encryption.Key == "" {
+		return errors.New("encryption.key is required, when encryption is enabled")
+	}
+
+	if !config.Sync.Once && config.Sync.Interval <= 0 {
+		return errors.New("sync.interval must be set, when sync.once is disabled")
+	}
+
+	return nil
 }
