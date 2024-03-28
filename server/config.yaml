@@ -1,4 +1,0 @@
-log:
-  level: "debug"
-server:
-  host: "0.0.0.0"

@@ -1,0 +1,12 @@
+encryption:
+  enabled: true
+  key: "this is a super secure key"
+sync:
+  graphs:
+    - /path/to/graph1
+    - /path/to/graph2
+  interval: 300
+  once: false
+server:
+  host: http://<your-server>:<port>
+  apitoken: "YourToken"
