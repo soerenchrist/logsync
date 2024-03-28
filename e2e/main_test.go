@@ -24,8 +24,40 @@ func Test(t *testing.T) {
 		if contentStr != "[]" {
 			t.Fatalf("Expected [], got %s", contentStr)
 		}
+
 	})
 
+}
+
+func buildClientContainer(t *testing.T, url string) testcontainers.Container {
+	ctx := context.Background()
+	request := testcontainers.ContainerRequest{
+		FromDockerfile: testcontainers.FromDockerfile{
+			Context:    "../client",
+			Dockerfile: "Dockerfile",
+			Repo:       "logsync",
+			Tag:        "latest",
+		},
+		Env: map[string]string{
+			"LOGSYNC_CLIENT_SYNC_ONCE":     "true",
+			"LOGSYNC_CLIENT_SYNC_INTERVAL": "10",
+			"LOGSYNC_CLIENT_SERVER_HOST":   url,
+			"LOGSYNC_CLIENT_SYNC_GRAPHS":   "/Graph1",
+		},
+	}
+
+	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: request,
+		Started:          true,
+	})
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	t.Cleanup(func() {
+		_ = container.Terminate(ctx)
+	})
+
+	return container
 }
 
 func buildServerContainer(t *testing.T) string {

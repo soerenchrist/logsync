@@ -7,5 +7,3 @@ RUN go mod download
 COPY . ./
 
 RUN go build -o /logsync
-
-CMD [ "/logsync"]
