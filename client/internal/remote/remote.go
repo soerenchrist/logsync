@@ -45,7 +45,7 @@ func (r ChangesRequest) Send(graphName string, since time.Time) ([]ChangeLogEntr
 		return nil, err
 	}
 	addApiTokenIfExists(req, r.config)
-	resp, err := http.DefaultClient.Get(url)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -160,11 +160,6 @@ func (r request) upload(filename string, modified time.Time, body []byte) error 
 	}
 
 	_, err = fileWriter.Write(body)
-	if err != nil {
-		return err
-	}
-
-	err = addFormField(mw, "ta-id", r.transaction)
 	if err != nil {
 		return err
 	}

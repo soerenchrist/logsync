@@ -15,8 +15,10 @@ func Scope(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		args := make([]any, 0)
 		transaction := r.Header.Get(transactionHeader)
+		ctx := r.Context()
 		if transaction != "" {
 			args = append(args, "transaction", transaction)
+			ctx = context.WithValue(ctx, "transaction", transaction)
 		}
 
 		requestId := r.Header.Get(requestIdHeader)
@@ -25,7 +27,7 @@ func Scope(next http.Handler) http.Handler {
 		}
 
 		logger := log.With(args)
-		ctx := context.WithValue(r.Context(), "logger", logger)
+		ctx = context.WithValue(ctx, "logger", logger)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
